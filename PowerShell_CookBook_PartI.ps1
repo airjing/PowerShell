@@ -18,10 +18,14 @@ $content.Substring(0,1000) >D:\xmlcontent.xml
 $xmlcontent = [xml] $content
 $xmlcontent.Save("D:\FullXMLContent.xml")
 $xmlcontent.rss
-$xmlcontent.rss.channel.Item | select title
+$xmlcontent.rss.channel.Item | Select-Object title
 Get-WmiObject WIN32_BIOS
 #return installed software which name like Atom
 Set-Location HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall
 Get-ChildItem -Recurse | Where-Object {$_.Name -like "*Atom*"} | Select-Object $_.Property  
 Set-Location Cert:\LocalMachine\ROOT
-Get-ChildItem | Where-Object {$_.Subject -like "*MR*"}                
+Get-ChildItem | Where-Object {$_.Subject -like "*MR*"} 
+
+# list all possible colors
+$colors = [System.Enum]::getvalues([System.ConsoleColor])
+foreach ($color in $colors) {Write-Host -ForegroundColor $color "This is the color '$color'"}
