@@ -1,5 +1,5 @@
 #PowerShell_CookBook_PartII_Chapter2 - Pipelines
-#Example 2-1. A PowerShell pipeline
+#2-1. A PowerShell pipeline
 Get-Process | Where-Object WorkingSet -gt 30Mb | Sort-Object -Descending Name
 Get-Process | Where-Object{ $_.Handles -gt 2000} | Sort-Object -Descending Handles
 # List all unresponding process
@@ -34,3 +34,7 @@ $edgeps = Get-Process | Where-Object {$_.Name -contains 'SVCHOST'}
 $edgeps.Id
 
 #2.8 Intercept Stages of the Pipeline
+
+#2.9 Automatically Capture Pipeline Output
+
+#2.10 Capture and Redirect Binary Process Output
