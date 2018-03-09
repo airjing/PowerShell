@@ -110,5 +110,5 @@ Get-Date -Format "yyyy-mm-dd - hh:mm:ss"
 #$files | Out-File C:\temp\alltxtfiles.txt
 # If streaming is not an option, use the StringBuilder class:
 $output = New-Object System.Text.StringBuilder
-Get-ChildItem C:\*.dll -Recurse | ForEach-Object {[void] $output.AppendLine($_.FullName)}
+Get-ChildItem C:\*.dll -Recurse | ForEach-Object {[void] $output.AppendLine($_.FullName + " | " + $_.VersionInfo)}
 $output.ToString()
