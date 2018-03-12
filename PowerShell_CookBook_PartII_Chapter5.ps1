@@ -110,6 +110,7 @@ Get-Date -Format "yyyy-mm-dd - hh:mm:ss"
 #$files | Out-File C:\temp\alltxtfiles.txt
 # If streaming is not an option, use the StringBuilder class:
 $output = New-Object System.Text.StringBuilder
+<<<<<<< HEAD
 Get-ChildItem C:\Windows\System\*.dll -Recurse | ForEach-Object {[void] $output.AppendLine($_.FullName)}
 $output.ToString()
 
@@ -125,3 +126,7 @@ Measure-Command{
 }
 
 #5.16 Generate Source Code and Other Repetitive Text
+=======
+Get-ChildItem C:\*.dll -Recurse | ForEach-Object {[void] $output.AppendLine($_.FullName + " | " + $_.VersionInfo)}
+$output.ToString()
+>>>>>>> 8f1cdbd9e4f5f28ad08ad7b150fe69dbe56455a6
