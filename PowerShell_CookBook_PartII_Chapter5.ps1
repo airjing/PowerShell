@@ -110,5 +110,18 @@ Get-Date -Format "yyyy-mm-dd - hh:mm:ss"
 #$files | Out-File C:\temp\alltxtfiles.txt
 # If streaming is not an option, use the StringBuilder class:
 $output = New-Object System.Text.StringBuilder
-Get-ChildItem C:\*.dll -Recurse | ForEach-Object {[void] $output.AppendLine($_.FullName)}
+Get-ChildItem C:\Windows\System\*.dll -Recurse | ForEach-Object {[void] $output.AppendLine($_.FullName)}
 $output.ToString()
+
+# Creating large text reports
+# An example of performance difference:
+Measure-Command {
+    $output = New-Object Text.StringBuilder
+    1..10000 | ForEach-Object {$output.Append("Hello World!")}
+}
+Measure-Command{
+    $output = ""
+    1..10000 | ForEach-Object { $output += "Hello World!"}
+}
+
+#5.16 Generate Source Code and Other Repetitive Text
