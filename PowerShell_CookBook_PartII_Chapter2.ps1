@@ -33,6 +33,9 @@ Get-Process | % Name | % ToUpper
 $edgeps = Get-Process | Where-Object {$_.Name -contains 'SVCHOST'}
 $edgeps.Id
 
+
+$ps = Get-Process Notepad | foreach-object {$_.kill()}
+
 #2.8 Intercept Stages of the Pipeline
 
 #2.9 Automatically Capture Pipeline Output
