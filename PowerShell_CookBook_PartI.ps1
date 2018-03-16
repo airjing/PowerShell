@@ -24,4 +24,8 @@ Get-WmiObject WIN32_BIOS
 Set-Location HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall
 Get-ChildItem -Recurse | Where-Object {$_.Name -like "*Atom*"} | Select-Object $_.Property  
 Set-Location Cert:\LocalMachine\ROOT
-Get-ChildItem | Where-Object {$_.Subject -like "*MR*"}                
+Get-ChildItem | Where-Object {$_.Subject -like "*MR*"} 
+
+# list all possible colors
+$colors = [System.Enum]::getvalues([System.ConsoleColor])
+foreach ($color in $colors) {Write-Host -ForegroundColor $color "This is the color '$color'"}
