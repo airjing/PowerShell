@@ -18,7 +18,7 @@ $content.Substring(0,1000) >D:\xmlcontent.xml
 $xmlcontent = [xml] $content
 $xmlcontent.Save("D:\FullXMLContent.xml")
 $xmlcontent.rss
-$xmlcontent.rss.channel.Item | select title
+$xmlcontent.rss.channel.Item | Select-Object title
 Get-WmiObject WIN32_BIOS
 #return installed software which name like Atom
 Set-Location HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall
