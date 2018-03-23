@@ -1,11 +1,11 @@
 # CHAPTER 10 Structured Files
 #10.1 Access information in an XML File
-$filename = ".\powershell_blog1.XML"
+$filename = "$PWD\powershell_blog.XML"
 if(!(Test-Path $filename))
 {
     Invoke-WebRequest blogs.msdn.com/b/powershell/rss.aspx -OutFile $filename
 }
-
+[System.IO.Path]::GetFullPath($filename)
 
 # Accessing properties of an XML document
 $xml = [XML](Get-Content $filename)
@@ -49,11 +49,28 @@ $xml = [xml](Get-Content $filename)
 $xml | Select-Xml $query1
 
 #10.3 Convert Objects to XML
-$psXMLFile = '.\ps.xml'
+$psXMLFile = "$PWD\psmetadata.xml"
 if(!(Test-Path $psXMLFile))
 {
     $ps = Get-Process | ConvertTo-Xml
     $ps.Save($psXMLFile)
 }
-[xml]$psXML = Get-Content $psXMLFile 
-$psXML | Select-Xml '//Property[@Name = "Name"]' | Select-Object -ExcludeProperty Node
+$psXML = [xml](Get-Content $psXMLFile) 
+$psXML | Select-Xml '//Property[@Name = "Name"]'
+
+#10.4 Modify Data in an XML File
+
+#10.5 Easily Import and Export Your Structured Data
+$favorites = @{}
+$favorites["VSPP"] = "D:\Databank\work\VSPP"
+$favorites["OpenStack"] = "D:\Databank\Work\OpenStack"
+$clixml = "$PWD\favorites.clixml"
+$favorites | Export-Clixml $clixml
+
+#10.6 Store the Output of a Command in a CSV or Delimited File
+Get-Process | Export-Csv "$PWD\ps.csv"
+
+#10.7 Import CSV and Delimited Data from a File
+$header = "Date","Time","PID","TID","Component","Text"
+$log = Import-Csv $env:windir\windowsupdate.log -Delimiter "`t" -Header $header
+$log | Group-Object Component
