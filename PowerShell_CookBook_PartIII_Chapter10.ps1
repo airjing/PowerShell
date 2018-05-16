@@ -74,3 +74,16 @@ Get-Process | Export-Csv "$PWD\ps.csv"
 $header = "Date","Time","PID","TID","Component","Text"
 $log = Import-Csv $env:windir\windowsupdate.log -Delimiter "`t" -Header $header
 $log | Group-Object Component
+
+#10.8 Manage JSON Data Streams
+$object = [PSCustomObject] @{
+    Name="Lee";
+    Phone="123456"
+}
+$json = ConvertTo-Json $object
+$json
+$hstable = ConvertFrom-Json $json
+$hstable
+
+$edge = Get-Process MicrosoftEdge
+$edge | ConvertTo-Json -Depth 2
