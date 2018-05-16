@@ -54,3 +54,34 @@ Get-Date | Select-Object -Property * | ConvertTo-Json
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $j = Invoke-WebRequest 'https://api.github.com/repos/PowerShell/PowerShell/issues' | ConvertFrom-Json
 $j | ConvertTo-Json
+
+$cred = Get-Credential
+$login = Invoke-WebRequest http://www.facebook.com/login.php -SessionVariable fb
+
+$login.Forms[0].Fields.email = $cred.UserName
+$login.Forms[0].Fields.pass = $cred.GetNetworkCredential().Password
+$mainpage = Invoke-WebRequest $login.Forms[0].Action -WebSession $fb -Body $login -Method Post
+$mainpage.ParsedHtml.getElementById('notificationsCountValue').innerText
+
+#12.6 Program: Get-PageUrls
+
+#12.7 Interact with REST-Based Web APIs
+$url = "https://api.stackexchange.com/2.0/questions/unanswered"
+$result = Invoke-RestMethod $url
+$result.Items | ForEach-Object {$_.Tittle;$_.Link;""}
+
+#12.8 Connect to a Web Service
+$url1 = "http://www.terraserver-usa.com/TerraService2.asmx"
+$terraServer = New-WebServiceProxy $url -Namespace Cookbook
+$place = New-Object Cookbook.Place
+$place.City = "Redmond"
+$place.State = "WA"
+$place.Country = "USA"
+$facts = $terraserver.GetPlaceFacts($place)
+$facts.Center
+
+#12.9 Export Command Output as a Web Page
+$filename = "C:\windows\temp\help.html"
+$commands = get-command | where {$_.CommandType -ne "Alias"}
+$summary = $commands | Get-Help | Select-Object Name,Synopsis
+$summary | ConvertTo-Html | select-content $filename
