@@ -15,3 +15,6 @@ else {
 # Install the Azure Resource Manager modules from the PowerShell Gallery
 # Answer 'Yes' or 'Yes to All' to continue with the installation.
 Install-Module -Name AzureRM -AllowClobber
+
+# Step3
+Import-Module -Name AzureRM
