@@ -1,32 +1,29 @@
-# https://docs.microsoft.com/en-us/powershell/azure/install-azur
-
-
-erm-ps?view=azurermps-6.0.0
+# https://docs.microsoft.com/en-us/powershell/azure/install-azurerm-ps?view=azurermps-6.0.0
 # Step1 Install PowerShellGet
 # This Script require elevated privileges.
 
-$psGetVer = (Get-Module -Name PowerShellGet -ListAvailable).Version
+$psGet = Get-Module -Name PowerShellGet -ListAvailable | Select-Object -First 1
+$psGetVer = $psGet.Version
 if ($psGetVer -lt "1.1.2.0")
 {
     Install-Module PowerShellGet -Force
 }
 else {
-    {Write-Host "The current PowerShellGet version is {0}, not need to upgrade it." $psGetVer}
+    Write-Host "The current PowerShellGet version is $psGetVer not need to upgrade it."
 }
 
 # Step2
 # Install the Azure Resource Manager modules from the PowerShell Gallery
 # Answer 'Yes' or 'Yes to All' to continue with the installation.
-Install-Module -Name AzureRM -AllowClobber
-
-# Step3
-# Import the AzureRM module
-Import-Module -Name AzureRM
-
-# Step4
-# Check the Version
-$azrm = Get-Module -name AzureRM -ListAvailable | Select-Object -Property Name,Version,Path
-$version = $azrm.version
+$AzureRM = Get-Module -Name AzureRM -ListAvailable | Select-Object -First 1
+if($AzureRM -ne $null)
+{
+    Write-Host "The AzureRM $AzureRMVersion has already installed."
+}
+else {
+    Install-Module -Name AzureRM -AllowClobber
+    Import-Module -Name AzureRM
+}
 
 ## Getting started with Azure PowerShell
 #login to Azure
@@ -34,20 +31,37 @@ Connect-AzureRmAccount
 # Get a credential
 $cred = get-credential -message "Enter the credential that will be used for new deployed VM"
 $vmName = "DemoVM1"
-New-AzureRmVM -Name $vmName -credential $cred
-
-$rgs = Get-AzureRmResourceGroupn| Select-Object ResourceGroupName,Location
-
-Write-Host "There are totally {0} resource groups were created", $rgs.count()
-foreach $rg in $rgs
+$AzureRmVM = Get-AzureRmVM $vmName
+if ($AzureRmVM -eq $null)
 {
-    
+    New-AzureRmVM -Name $vmName -credential $cred
+}
+else
+{
+    Write-host "The VM $vmName has already deployed on Azure"
+    "Name:" + $AzureRmVM.Name
+    "ProvisionState:" + $AzureRmVM.ProvisioningState
+    "StatusCode:" + $AzureRmVM.StatusCode
+    "AdminUserName:" + $AzureRmVM.OSProfile.AdminUsername
+    "Resource Group Name:" + $AzureRmVM.ResourceGroupName
+    "Id:" + $AzureRmVM.ID
+    "VmID:" + $AzureRmVM.VmID
+    "Type:" + $AzureRmVM.Type
+    "Location:" + $AzureRmVM.Location
+    "LicenseType:" + $AzureRmVM.LicenseType
+    "VmSize:" + $AzureRmVM.HardwareProfile.VmSize
+    "Image Publisher:" + $AzureRmVM.StorageProfile.ImageReference.PUblisher
+    "Image Offer:" + $AzureRmVM.StorageProfile.ImageReference.Offer
+    "Image Sku:" + $AzureRmVM.StorageProfile.ImageReference.Sku
+    "OS Type:" + $AzureRmVM.StorageProfile.OSDisk.OsType
+    "DiskSizeGB:" + $AzureRmVM.StorageProfile.OSDisk.DiskSizeGB
+    "StorageAccountType:" + $AzureRmVM.StorageProfile.OSDIsk.ManagedDisk.StorageAccountType
+}
+
+$rgs = Get-AzureRmResourceGroup | Select-Object ResourceGroupName,Location
+
+foreach ($rg in $rgs)
+{    
     Get-AzureRmResource | where-object ResourceGroupName -eq $rg | Select-Object ResourceGroupName,Location,ResourceType,Name
 
 }
-
-Get-AzureRmVm -Name $vmName -resourcegroupname $rg[0]
-    | Select-Object -ExpandProperty StorageProfile
-    | Select-Object -ExpandProperty ImageReference
-
-
