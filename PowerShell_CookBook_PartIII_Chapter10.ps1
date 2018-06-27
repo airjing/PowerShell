@@ -1,7 +1,7 @@
 # CHAPTER 10 Structured Files
 #10.1 Access information in an XML File
 $filename = "$PWD\powershell_blog.XML"
-if(!(Test-Path $filename))
+if(!(Test-Path $filename) -or (Get-Item $filename).Length -eq 0)
 {
     Invoke-WebRequest blogs.msdn.com/b/powershell/rss.aspx -OutFile $filename
 }
@@ -87,3 +87,17 @@ $hstable
 
 $edge = Get-Process MicrosoftEdge
 $edge | ConvertTo-Json -Depth 2
+
+$content = @"
+<albums>
+<album>
+<artist>Michael Jackson</artist>
+<name>Thriller</name>
+</album>
+<album>
+<artist>AC/DC</artist>
+<name>Back in Black</name>
+</album>
+<albums>
+"@
+$content
