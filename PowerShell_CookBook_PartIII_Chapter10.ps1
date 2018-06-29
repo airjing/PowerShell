@@ -88,16 +88,108 @@ $hstable
 $edge = Get-Process MicrosoftEdge
 $edge | ConvertTo-Json -Depth 2
 
-$content = @"
-<albums>
-<album>
-<artist>Michael Jackson</artist>
-<name>Thriller</name>
-</album>
-<album>
-<artist>AC/DC</artist>
-<name>Back in Black</name>
-</album>
-<albums>
+$xmlUnattend = [xml] @"
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+    <settings pass="windowsPE">
+        <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <WindowsDeploymentServices>
+                <Login>
+                    <Credentials>
+                        <Domain>RNEA</Domain>
+                        <Password>Esoteric$</Password>
+                        <Username>tv2bot</Username>
+                    </Credentials>
+                </Login>
+            </WindowsDeploymentServices>
+            <EnableFirewall>false</EnableFirewall>
+            <EnableNetwork>true</EnableNetwork>
+            <Restart>Restart</Restart>
+        </component>
+        <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <SetupUILanguage>
+                <UILanguage>en-US</UILanguage>
+            </SetupUILanguage>
+        </component>
+    </settings>
+    <settings pass="specialize">
+        <component name="Microsoft-Windows-IE-ESC" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <IEHardenAdmin>false</IEHardenAdmin>
+            <IEHardenUser>false</IEHardenUser>
+        </component>
+        <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <DoNotOpenServerManagerAtLogon>true</DoNotOpenServerManagerAtLogon>
+        </component>
+        <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <Identification>
+                <Credentials>
+                    <Domain>%USERDOMAIN%</Domain>
+                    <Password>%USERPASSWORD%</Password>
+                    <Username>%USERNAME%</Username>
+                </Credentials>
+                <JoinDomain>%MACHINEDOMAIN%</JoinDomain>
+            </Identification>
+        </component>
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <AutoLogon>
+                <Password>
+                    <Value>TQAxAGMAcgBvACQAbwBmAHQAUABhAHMAcwB3AG8AcgBkAA==</Value>
+                    <PlainText>false</PlainText>
+                </Password>
+                <LogonCount>3</LogonCount>
+                <Username>administrator</Username>
+                <Enabled>true</Enabled>
+            </AutoLogon>
+            <ComputerName>%Machine%</ComputerName>
+        </component>
+    </settings>
+    <settings pass="oobeSystem">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <OOBE>
+                <HideEULAPage>true</HideEULAPage>
+            </OOBE>
+            <TimeZone>China Standard Time</TimeZone>
+            <RegisteredOwner>Mediaroom Beijing LAB</RegisteredOwner>
+            <RegisteredOrganization>Ericsson</RegisteredOrganization>
+            <FirstLogonCommands>
+                <SynchronousCommand wcm:action="add">
+                    <CommandLine>cmd /c call C:\TV2OPS\Script\StartupStage0.bat</CommandLine>
+                    <Order>1</Order>
+                    <Description>Setup IP</Description>
+                </SynchronousCommand>
+            </FirstLogonCommands>
+            <Display>
+                <ColorDepth>32</ColorDepth>
+                <HorizontalResolution>1024</HorizontalResolution>
+                <VerticalResolution>768</VerticalResolution>
+            </Display>
+        </component>
+        <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <InputLocale>0409:00000409</InputLocale>
+            <SystemLocale>en-US</SystemLocale>
+            <UILanguage>en-US</UILanguage>
+            <UILanguageFallback>en-US</UILanguageFallback>
+            <UserLocale>en-US</UserLocale>
+        </component>
+    </settings>
+    <cpi:offlineImage cpi:source="wim:d:/hpse316.wim#Windows Server 2008 ENT x64 SP2 for HP SE316(V1.0.0)" xmlns:cpi="urn:schemas-microsoft-com:cpi" />
+</unattend>
 "@
-$content
+
+$UnattendedJoin = $xmlUnattend.unattend.settings.component | Where-Object {$_.Name -eq "Microsoft-Windows-UnattendedJoin"}
+$UnattendedJoinUserDomain = $UnattendedJoin.Identification.Credentials.Domain
+$UnattendedJoinPassword = $UnattendedJoin.Identification.Credentials.Password
+$UnattendedJoinUsername = $UnattendedJoin.Identification.Credentials.Username
+$UnattendedJoinDomain = $UnattendedJoin.Identification.JoinDomain
+
+$UnattendedJoin.Identification.Credentials.Domain = "RNEA"
+$UnattendedJoin.Identification.Credentials.Password = "Esoteric$$"
+$UnattendedJoin.Identification.Credentials.Username = "LabAgent"
+$UnattendedJoin.Identification.JoinDomain = "RNEA.IPTV.MR.ERICSSON.SE"
+$xmlUnattend.Save("D:\1.xml")
+
+$oobe = $xmlUnattend.unattend.settings | Where-Object ($_.pass -eq "oobeSystem")
+$str = ''
+$oobe.component.Microsoft&#8211Windows&#8211Shell&#8211Setup'
+
+Select-Xml '//unattend.settings[@pass='oobeSystem']' $xmlUnattend
