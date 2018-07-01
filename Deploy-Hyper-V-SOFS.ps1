@@ -1,8 +1,8 @@
 $LabConfig = @{Root = "$home\SCLAB"; DomainAdmin = 'LabAdmin';AdminPassword = 'P@ssword1!';Prefix = 'SC-'; `
                 SwitchName = 'Lab';DCEdition = '4';AdditionalNetworksConfig=@(); DomainNetbiosName = "SCLABDemo";`
                 DomainName = "SCLABDemo.INFRA.CORP"; ServerDCGUIVHD = "Win2016_DC_G2.vhdx";`
-                ServerDCCoreVHD = "Win2016_DC_Core_G2.vhdx";` TimeZone = "China Standard Time"; VHDStore = "F:";`
-                Win2K6ISO = "D:\Databank\Software\ISO\en_windows_server_2016_vl_x64_dvd_11636701.iso";`
+                ServerDCCoreVHD = "Win2016_DC_Core_G2.vhdx"; TimeZone = "China Standard Time"; VHDStore = "F:";`
+                ISOStore = "E:\Software\ISO;D:\Databank\Software\ISO"; Win2K6VL = "en_windows_server_2016_vl_x64_dvd_11636701.iso"
                 VMs = @()}
 
 #Add DC's info
@@ -61,6 +61,27 @@ function Get-WindowsBuildNumber
 }
 #endregion
 
+function Get-FileinMultiPath{
+    param(
+        [Parameter(Mandatory)]
+        [string]
+        $Path,
+        [Parameter(Mandatory)]
+        [string]
+        $Filename
+    )
+    if (($Path -ne $null) -and ($Filename -ne $null))
+    {
+        $aryPath = $Path.Split(";")
+        foreach($p in $aryPath)
+        {
+            $f = (Get-ChildItem -Path $p -Recurse $Filename).FullName
+            return $f
+        }
+    }
+}
+
+
 #region Prerequest check
 Start-Transcript -Path "$($LabConfig.Root)\Prereq.log"
 $startDateTime = Get-Date
@@ -99,7 +120,7 @@ if(!(Test-Path "$($LabConfig.VHDStore)\ParentDisks"))
 }    
 #Download conver-windowsimage into Tools and ToolsVHD
 WriteInfoHighlighted "Testing convert-windowsimage presence in \Tools"
-if(Test-Path "$LabConfigRoot\Tools\convert-windowsimage.ps1")
+if(Test-Path "$($LabConfig.Root)\Tools\convert-windowsimage.ps1")
 {
     WriteSuccess "`t convert-windowsimage.ps1 already exists in \Tools, skipping and download"    
 }
@@ -107,16 +128,16 @@ else {
     WriteInfo "`t Downloading convert-windowsimage"
     try {
         Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 `
-        -OutFile "$LabConfigRoot\Tools\convert-windowsimage.ps1"
+        -OutFile "$($LabConfig.Root)\Tools\convert-windowsimage.ps1"
     }
     catch {
         WriteError "`t Failed to download convert-windowsimage.ps1"
     }
 }
 WriteInfoHighlighted "Testing convert-windowsimage presence in \Tools\ToolsVHD"
-    if (!(Test-Path "$LabConfigRoot\Tools\ToolsVHD\convert-windowsimage.ps1"))
+    if (!(Test-Path "$($LabConfig.Root)\Tools\ToolsVHD\convert-windowsimage.ps1"))
     {
-        Copy-Item "$LabConfigRoot\Tools\convert-windowsimage.ps1" "$LabConfigRoot\Tools\ToolsVHD\convert-windowsimage.ps1"
+        Copy-Item "$($LabConfig.Root)\Tools\convert-windowsimage.ps1" "$($LabConfig.Root)\Tools\ToolsVHD\convert-windowsimage.ps1"
         WriteSuccess "`t convert-windowsimage.ps1 copied into \Tools\ToolsVHD"
     }
     else {
@@ -192,13 +213,6 @@ Start-Transcript -Path "$($LabConfig.Root)\ParentDisks.log"
 $StartParentVHDDateTime = Get-Date
 WriteInfo "Starting Create Parent Disks at $StartParentVHDDateTime"
 
-#Load variables from LabConfig
-$AdminPassword = $LabConfig.AdminPassword
-$DomainName = $LabConfig.DomainName
-$DomainNetbiosName = $LabConfig.DomainNetbiosName
-$ServerGUIVHDName = $LabConfig.ServerDCGUIVHD
-$ServerCoreVHDName = $LabConfig.ServerDCCoreVHD
-$TimeZone = (Get-TimeZone).id
 
 function Convert-ISO2VHD{
     param(
@@ -229,7 +243,7 @@ function Convert-ISO2VHD{
         WriteError "The ISO File $ISOFullName doesn't exists, please dobule check"
     }
     WriteInfoHighlighted "Loading convert-WindowsImage.ps1 ..."
-    . "$LabConfigRoot\tools\convert-windowsimage.ps1"
+    . "$($LabConfig.Root)\tools\convert-windowsimage.ps1"
     
     if (!(Test-Path "$($isoDriverLetter):\sources\install.wim"))
     {
@@ -271,8 +285,10 @@ if($ParentDisks -eq $null)
     # 4 : Server 2016 DataCenter GUI
     WriteInfo "There is nothing in VDHStore $($LabConfig.VHDStore)\ParentDisks"
     WriteInfo "Creating Parent disks in $($LabConfig.VHDStore)\ParentDisks"
-    Convert-ISO2VHD -ISOFullName $LabConfig.Win2K6ISO -ImageIndex 3 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_Core_G2.vhdx" -VHDSize 30GB
-    Convert-ISO2VHD -ISOFullName $LabConfig.Win2K6ISO -ImageIndex 4 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_G2.vhdx" -VHDSize 60GB
+    #$Win2K6ISO = Get-ChildItem -Path $($LabConfig.ISOStore) -Recurse "en_windows_server_2016_vl_x64_dvd_11636701.iso"
+    $Win2K6ISO = Get-FileinMultiPath $($LabConfig.ISOStore) $($LabConfig.Win2K6VL)
+    Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex 3 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_Core_G2.vhdx" -VHDSize 30GB
+    Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex 4 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_G2.vhdx" -VHDSize 60GB
 }
 else
 {
@@ -299,7 +315,7 @@ function CreateUnattendFile{
         [Parameter(Mandatory=$true)]
         [string]
         $TimeZone,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory=$false)]
         [boolean]
         $JoinDomain
     )
@@ -307,102 +323,111 @@ function CreateUnattendFile{
     {
         Remove-Item "$LabConfig.Root\unattend.xml"
     }
-    $unattendFile = New-Item "$LabConfig.Root\unattend.xml" -ItemType File
-    $DomainName = $LabConfig.DomainName
-    
-    
-    if ($JoinDomain -eq $false)
-    {
-        $FileContent = @"
-<?xml version='1.0' encoding='utf-8'?>
-<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
-  <settings pass="offlineServicing">
-   <component
-        xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        language="neutral"
-        name="Microsoft-Windows-PartitionManager"
-        processorArchitecture="amd64"
-        publicKeyToken="31bf3856ad364e35"
-        versionScope="nonSxS"
-        >
-      <SanPolicy>1</SanPolicy>
-    </component>
- </settings>
- <settings pass="specialize">
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        <ComputerName>$Computername</ComputerName>
-        <RegisteredOwner>Microsoft</RegisteredOwner>
-        <RegisteredOrganization>Contoso</RegisteredOrganization>
-    </component>
- </settings>
- <settings pass="oobeSystem">
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <UserAccounts>
-        <AdministratorPassword>
-           <Value>$AdminPassword</Value>
-           <PlainText>true</PlainText>
-        </AdministratorPassword>
-      </UserAccounts>
-      <OOBE>
-        <HideEULAPage>true</HideEULAPage>
-        <SkipMachineOOBE>true</SkipMachineOOBE> 
-        <SkipUserOOBE>true</SkipUserOOBE> 
-      </OOBE>
-      <TimeZone>$TimeZone</TimeZone>
-    </component>
-  </settings>
-</unattend>
-"@    }
-    else {
-        $fileContent = @"
-        <?xml version='1.0' encoding='utf-8'?>
-        <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-         <settings pass="specialize">
-            <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                <ComputerName>$Computername</ComputerName>
-                <RegisteredOwner>Microsoft</RegisteredOwner>
-                <RegisteredOrganization>Microsoft</RegisteredOrganization>
-            </component>
-            <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                <RunSynchronous>
-                    $RunSynchronous
-                </RunSynchronous>
-            </component>    
-            <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                <Identification>
-                        <Credentials>
-                            <Domain>$DomainName</Domain>
-                            <Password>$AdminPassword</Password>
-                            <Username>Administrator</Username>
-                        </Credentials>
-                        <JoinDomain>$DomainName</JoinDomain>
-                </Identification>
-            </component>
-         </settings>
-         <settings pass="oobeSystem">
-            <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-              <UserAccounts>
-                <AdministratorPassword>
-                   <Value>$AdminPassword</Value>
-                   <PlainText>true</PlainText>
-                </AdministratorPassword>
-              </UserAccounts>
-              <OOBE>
+    $unattendFile = New-Item "$($LabConfig.Root)\unattend.xml" -ItemType File
+    $xmlUnattend = [xml] @"
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+    <settings pass="windowsPE">
+        <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <WindowsDeploymentServices>
+                <Login>
+                    <Credentials>
+                        <Domain>RNEA</Domain>
+                        <Password>Esoteric$</Password>
+                        <Username>tv2bot</Username>
+                    </Credentials>
+                </Login>
+            </WindowsDeploymentServices>
+            <EnableFirewall>false</EnableFirewall>
+            <EnableNetwork>true</EnableNetwork>
+            <Restart>Restart</Restart>
+        </component>
+        <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <SetupUILanguage>
+                <UILanguage>en-US</UILanguage>
+            </SetupUILanguage>
+        </component>
+    </settings>
+    <settings pass="specialize">
+        <component name="Microsoft-Windows-IE-ESC" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <IEHardenAdmin>false</IEHardenAdmin>
+            <IEHardenUser>false</IEHardenUser>
+        </component>
+        <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <DoNotOpenServerManagerAtLogon>true</DoNotOpenServerManagerAtLogon>
+        </component>
+        <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <Identification>
+                <Credentials>
+                    <Domain>%USERDOMAIN%</Domain>
+                    <Password>%USERPASSWORD%</Password>
+                    <Username>%USERNAME%</Username>
+                </Credentials>
+                <JoinDomain>%MACHINEDOMAIN%</JoinDomain>
+            </Identification>
+        </component>
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <AutoLogon>
+                <Password>
+                    <Value>TQAxAGMAcgBvACQAbwBmAHQAUABhAHMAcwB3AG8AcgBkAA==</Value>
+                    <PlainText>false</PlainText>
+                </Password>
+                <LogonCount>3</LogonCount>
+                <Username>administrator</Username>
+                <Enabled>true</Enabled>
+            </AutoLogon>
+            <ComputerName>%Machine%</ComputerName>
+        </component>
+    </settings>
+    <settings pass="oobeSystem">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <OOBE>
                 <HideEULAPage>true</HideEULAPage>
-                <SkipMachineOOBE>true</SkipMachineOOBE> 
-                <SkipUserOOBE>true</SkipUserOOBE> 
-              </OOBE>
-              <TimeZone>$TimeZone</TimeZone>
-            </component>
-          </settings>
-        </unattend>        
+            </OOBE>
+            <TimeZone>China Standard Time</TimeZone>
+            <RegisteredOwner>Mediaroom Beijing LAB</RegisteredOwner>
+            <RegisteredOrganization>Ericsson</RegisteredOrganization>
+            <FirstLogonCommands>
+                <SynchronousCommand wcm:action="add">
+                    <CommandLine>cmd /c call C:\TV2OPS\Script\StartupStage0.bat</CommandLine>
+                    <Order>1</Order>
+                    <Description>Setup IP</Description>
+                </SynchronousCommand>
+            </FirstLogonCommands>
+            <Display>
+                <ColorDepth>32</ColorDepth>
+                <HorizontalResolution>1024</HorizontalResolution>
+                <VerticalResolution>768</VerticalResolution>
+            </Display>
+        </component>
+        <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <InputLocale>0409:00000409</InputLocale>
+            <SystemLocale>en-US</SystemLocale>
+            <UILanguage>en-US</UILanguage>
+            <UILanguageFallback>en-US</UILanguageFallback>
+            <UserLocale>en-US</UserLocale>
+        </component>
+    </settings>
+    <cpi:offlineImage cpi:source="wim:d:/hpse316.wim#Windows Server 2008 ENT x64 SP2 for HP SE316(V1.0.0)" xmlns:cpi="urn:schemas-microsoft-com:cpi" />
+</unattend>
 "@
-        }
-    }    
-    #Set-Content -Path $unattendFile -Value $FileContent
+
+#Load variables from LabConfig
+
+
+$UnattendedJoin = $xmlUnattend.unattend.settings.component | Where-Object {$_.Name -eq "Microsoft-Windows-UnattendedJoin"}
+$UnattendedJoin.Identification.Credentials.Domain = $($LabConfig.DomainNetbiosName)
+$UnattendedJoin.Identification.Credentials.Password = $($LabConfig.AdminPassword)
+$UnattendedJoin.Identification.Credentials.Username = $($LabConfig.DomainAdmin)
+$UnattendedJoin.Identification.JoinDomain = $($LabConfig.DomainName)
+
+# Specialize - Microsoft-Windows-Shell-Setup
+$UnattendedSpecShellSetup = $xmlUnattend.unattend.settings.component
+
+
+    $xmlUnattend.Save($unattendFile)
     Return $unattendFile
+    }
 #regionend
 
 #region Deploy DC
@@ -412,4 +437,5 @@ $DCMetadata = $LabConfig.VMs | Where-Object {$_.MachineType -eq "DomainControlle
 WriteInfo "`tINFO: $DCMetadata.VMName"
 WriteInfo "`tINFO: $DCMetadata.CpuCores"
 WriteInfo "Create unattend file"
-$uaf = CreateUnattendFile -ComputerName $LabConfig.VMs -AdminPassword "P@ssword1!" -path $LabConfig.Root -TimeZone $TimeZone -JoinDomain $true
+$TimeZone = (Get-TimeZone).id
+$uaf = CreateUnattendFile -ComputerName $DCMetadata.VMName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -JoinDomain $true
