@@ -2,14 +2,15 @@ $LabConfig = @{Root = "$home\SCLAB"; DomainAdmin = 'LabAdmin';AdminPassword = 'P
                 SwitchName = 'Lab';DCEdition = '4';AdditionalNetworksConfig=@(); DomainNetbiosName = "SCLABDemo";`
                 DomainName = "SCLABDemo.INFRA.CORP"; ServerDCGUIVHD = "Win2016_DC_G2.vhdx";`
                 ServerDCCoreVHD = "Win2016_DC_Core_G2.vhdx"; TimeZone = "China Standard Time"; VHDStore = "F:";`
-                ISOStore = "E:\Software\ISO;D:\Databank\Software\ISO"; Win2K6VL = "en_windows_server_2016_vl_x64_dvd_11636701.iso"
+                ISOStore = "E:\Software\ISO;D:\Databank\Software\ISO"; Win2K6VL = "en_windows_server_2016_vl_x64_dvd_11636701.iso";`
+                VMHome = "F:\VMs";
                 VMs = @()}
 
 #Add DC's info
-$LabConfig.VMs += @{VMName="SCLABDC01";MachineType="DomainController";ParentVHD = "Win2016Core_G2.vhdx";MemoryStartupBytes = 2GB;CpuCores = 4;}
-1..4 | ForEach-Object {$VMNames="SOFS0"; $LabConfig.VMs += @{ VMName = "$VMNames$_" ; MachineType = "S2D" ;`
+$LabConfig.VMs += @{VMName="SCLABDC01";MachineType="DomainController";ParentVHD = "Win2016_DC_Core_G2.vhdx";MemoryStartupBytes = 2GB;CpuCores = 4;}
+1..4 | ForEach-Object {$VMNames="SOFS0"; $LabConfig.VMs += @{ VMName = "$VMNames$_" ; MachineType = "ScaleOutFileServer" ;`
                         ParentVHD = "Win2016Core_G2.vhdx"; SSDNumber = 0; SSDSize = 800GB ; HDDNumber = 12; HDDSize = 4TB; MemoryStartupBytes = 512MB}}
-1..4 | ForEach-Object {$VMNames="SCHOST0"; $LabConfig.VMs += @{ VMName = "$VMNames$_"; MachineType = "Hyper-V";`
+1..4 | ForEach-Object {$VMNames="SCHOST0"; $LabConfig.VMs += @{ VMName = "$VMNames$_"; MachineType = "Hyper-VHost";`
                         ParentVHD = "Win2016Core_G2.vhdx"; SSDNumber =0; SSDSize = 800GB; HDDNumber = 0; HDDSize = 4TB; MemoryStartupBytes = 8192MB}}
 
 # Verify Running as Admin rights
@@ -61,6 +62,7 @@ function Get-WindowsBuildNumber
 }
 #endregion
 
+#region Helper functions
 function Get-FileinMultiPath{
     param(
         [Parameter(Mandatory)]
@@ -81,6 +83,36 @@ function Get-FileinMultiPath{
     }
 }
 
+
+# Add remote server to TrustedHosts on local computer.
+function Prepare-PSRemoting {
+    param(
+        [Parameter(Mandatory)]
+        [string]
+        $RemoteHost
+    )
+    WriteInfo "Strating WinRM Service"
+    Start-Service WinRM
+    winrm quickconfig
+    $WinRMSrv = Get-Service WinRM
+    WriteInfo "The WinRM Service is in $($WinRMSrv.Status) Status"
+    $curHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
+    if ($curHosts -eq "")
+    {
+        WriteInfo "There are not any TrustedHosts on this machine."
+        Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$RemoteHost" -Force
+    }
+    elseif($curHosts -ne $RemoteHost) {
+        Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$curHosts,$RemoteHost" -Force
+    }   
+    
+    $curHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
+    WriteInfo "The Current Trusted Hosts is $curHosts"
+     
+    
+}
+
+#endregion
 
 #region Prerequest check
 Start-Transcript -Path "$($LabConfig.Root)\Prereq.log"
@@ -315,16 +347,19 @@ function CreateUnattendFile{
         [Parameter(Mandatory=$true)]
         [string]
         $TimeZone,
+        [Parameter(Mandatory=$true)]
+        [string]
+        $Role,
         [Parameter(Mandatory=$false)]
         [boolean]
         $JoinDomain
     )
-    if (Test-Path "$LabConfig.Root\unattend.xml")
+    if (Test-Path "$($LabConfig.Root)\unattend.xml")
     {
-        Remove-Item "$LabConfig.Root\unattend.xml"
+        Remove-Item "$($LabConfig.Root)\unattend.xml"
     }
     $unattendFile = New-Item "$($LabConfig.Root)\unattend.xml" -ItemType File
-    $xmlUnattend = [xml] @"
+    $xmlUnattend = [xml]@"
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
     <settings pass="windowsPE">
@@ -364,20 +399,20 @@ function CreateUnattendFile{
                     <Username>%USERNAME%</Username>
                 </Credentials>
                 <JoinDomain>%MACHINEDOMAIN%</JoinDomain>
+                <JoinWorkgroup>%JoinWorkgroup%</JoinWorkgroup>
             </Identification>
         </component>
         <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
             <AutoLogon>
                 <Password>
-                    <Value>TQAxAGMAcgBvACQAbwBmAHQAUABhAHMAcwB3AG8AcgBkAA==</Value>
+                    <Value>UABAAHMAcwB3AG8AcgBkAFAAYQBzAHMAdwBvAHIAZAA=</Value>
                     <PlainText>false</PlainText>
                 </Password>
-                <LogonCount>3</LogonCount>
-                <Username>administrator</Username>
                 <Enabled>true</Enabled>
+                <Username>administrator</Username>
             </AutoLogon>
-            <ComputerName>%Machine%</ComputerName>
-        </component>
+            <ComputerName>%ComputerName%</ComputerName>
+        </component>       
     </settings>
     <settings pass="oobeSystem">
         <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -385,8 +420,8 @@ function CreateUnattendFile{
                 <HideEULAPage>true</HideEULAPage>
             </OOBE>
             <TimeZone>China Standard Time</TimeZone>
-            <RegisteredOwner>Mediaroom Beijing LAB</RegisteredOwner>
-            <RegisteredOrganization>Ericsson</RegisteredOrganization>
+            <RegisteredOwner>SCLAB</RegisteredOwner>
+            <RegisteredOrganization>SCLAB</RegisteredOrganization>
             <FirstLogonCommands>
                 <SynchronousCommand wcm:action="add">
                     <CommandLine>cmd /c call C:\TV2OPS\Script\StartupStage0.bat</CommandLine>
@@ -414,28 +449,155 @@ function CreateUnattendFile{
 
 #Load variables from LabConfig
 
-
 $UnattendedJoin = $xmlUnattend.unattend.settings.component | Where-Object {$_.Name -eq "Microsoft-Windows-UnattendedJoin"}
 $UnattendedJoin.Identification.Credentials.Domain = $($LabConfig.DomainNetbiosName)
 $UnattendedJoin.Identification.Credentials.Password = $($LabConfig.AdminPassword)
 $UnattendedJoin.Identification.Credentials.Username = $($LabConfig.DomainAdmin)
-$UnattendedJoin.Identification.JoinDomain = $($LabConfig.DomainName)
-
+if($JoinDomain) 
+{
+    $UnattendedJoin.Identification.JoinDomain = $($LabConfig.DomainName)
+    $UnattendedJoin.Identification.JoinWorkgroup = ""
+}
+else
+{
+    $UnattendedJoin.Identification.JoinDomain = ""
+    $UnattendedJoin.Identification.JoinWorkgroup = "WorkGroup"
+}
 # Specialize - Microsoft-Windows-Shell-Setup
-$UnattendedSpecShellSetup = $xmlUnattend.unattend.settings.component
+$UnattendSpecialize = $xmlUnattend.unattend.settings | Where-Object {$_.pass -eq "specialize"}
+$UnattendSpecializeShellSetup = $UnattendSpecialize.component | Where-Object {$_.Name -eq "Microsoft-Windows-Shell-Setup"}
+$UnattendSpecializeShellSetup.ComputerName = $ComputerName
 
+# oobeSystem - Microsoft-Windows-Shell-Setup
+switch($Role)
+{
+    "DomainController" {$cmdline = "Powershell.exe C:\DCPromo.ps1"}
+    "ScaleOutFileServer" {$cmdline = "PowerShell.exe C:\SOFS_Deploy.ps1"}
+    "Hyper-VHost" {$cmdline = "PowerShell.exe C:\Hyper-VHost_Deploy.ps1"}
 
-    $xmlUnattend.Save($unattendFile)
-    Return $unattendFile
+}
+
+$Unattendoobe = $xmlUnattend.unattend.settings | Where-Object {$_.pass -eq "oobeSystem"}
+$UnattendoobeWindowsShellSetup = $Unattendoobe.component | Where-Object {$_.Name -eq "Microsoft-Windows-Shell-Setup"}
+$UnattendoobeWindowsShellSetup.FirstLogonCommands.SynchronousCommand.CommandLine = $cmdline
+
+$xmlUnattend.Save($unattendFile)
+Return $unattendFile
+}
+
+function CreateFirstLogonScriptFile
+{
+    param(
+        # Parameter help description
+        [Parameter(Mandatory=$true)]
+        [string]
+        $Role
+    )
+    if ($Role -eq "DomainController")
+    {
+        $DCPromoScriptFile = "$($LabConfig.Root)\DCPromo.ps1"
+        if (Test-Path $DCPromoScriptFile)
+        {
+            Remove-Item $DCPromoScriptFile
+        }
+        $DCPromo = @"
+Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+Install-ADDSForest -DomainName $($Labconfig.DomainName) -DomainNetBIOSName $($Labconfig.DomainNetbiosName) -ForestMode Win2012 -DomainMode Win2012 -InstallDNS -SkipAutoConfigureDNS -SafeModeAdministratorPassword (ConvertTo-SecureString -string "P@ssword" -AsPlainText -Force) -Force
+"@
+        Set-Content -Path $DCPromoScriptFile -Value $DCPromo
+        return $DCPromoScriptFile
     }
-#regionend
+}
+
+
+#endregion
 
 #region Deploy DC
-WriteInfo "Starting Deplooy DomainController"
+WriteInfo "Starting Deploy DomainController"
 WriteInfo "`tGetting DC's information from Variable"
 $DCMetadata = $LabConfig.VMs | Where-Object {$_.MachineType -eq "DomainController"}
-WriteInfo "`tINFO: $DCMetadata.VMName"
-WriteInfo "`tINFO: $DCMetadata.CpuCores"
+$DCName = $DCMetadata.VMName
+$DCCpuCores = $DCMetadata.CpuCores
+$DCVHD = "$($LabConfig.VMHome)\$($DCMetadata.VMName).vhdx"
+$DCParentVHD = "$($LabConfig.VHDStore)\ParentDisks\$($DCMetaData.ParentVHD)"
+WriteInfo "`tINFO: VMName -  $DCName"
+WriteInfo "`tINFO: CpuCores - $DCCpuCores"
 WriteInfo "Create unattend file"
 $TimeZone = (Get-TimeZone).id
-$uaf = CreateUnattendFile -ComputerName $DCMetadata.VMName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -JoinDomain $true
+$uaf = CreateUnattendFile -ComputerName $DCName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $DCMetadata.MachineType -JoinDomain $true
+$DCPromoScriptFile = CreateFirstLogonScriptFile -Role $DCMetadata.MachineType
+# Create a new different VHD
+WriteInfo "Starting Create a VHD file $DCVHD from parent disk - $DCParentVHD"
+try{
+    if(!(Test-Path $DCVHD))
+    {
+        New-VHD -ParentPath $DCParentVHD -Path $DCVHD -SizeByte 100GB -Differencing
+        WriteSuccess "The $DCVHD created. "
+    }
+    else {
+        WriteInfo "$DCVHD is already exists"
+    }
+}
+catch{
+    WriteError "Create VHD failed"
+    WriteError $_.Exception.Message
+}
+
+# Create the virtual Domain Controller
+WriteInfo "Starting Deploy $DCName ..."
+try
+{
+    $vmDC = Get-VM -Name $DCName -ErrorAction SilentlyContinue
+    if($vmDC -eq $null)
+    {
+        New-VM -Name $DCMetadata.VMName -MemoryStartupBytes $DCMetadata.MemoryStartupBytes -SwitchName "Lab" -Path $($LabConfig.VMHome) -Generation 2 -VHDPath $DCVHD
+        WriteSuccess "The Deployment of Virtual Machine $DCName) Successful."
+        # Change CPU Cores and Disable checkpoint
+        Set-VM -Name $DCName -ProcessorCount $DCMetadata.CpuCores -CheckpointType Disabled
+    }
+    else {
+        WriteInfo "Virtual Machine $DCName is already exists on HOST"
+    }
+    
+}
+Catch
+{
+    WriteError "The deployment of Virtual Machine $DCMetadata.VMName failed."
+    WriteError $_.Exception.Message
+}
+
+# Copy unattend.xml to VHD
+WriteInfo "Copying unattend file to $DCVHD"
+WriteInfo "Mounting VHD file $DCVHD to file system."
+try{
+    #Get the last available driver letter
+    #$ll = (Get-Volume).DriveLetter | Sort-Object | Select-Object -last 1
+    #$lln = "$([char](([int]$ll)+1))" + ":\"
+    # The VHD file contains multiple partitions, use where-object to filter out non-NTFS partitions.
+    $vhd = Mount-VHD -Path $DCVHD -Passthru | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
+    #$vhd = Mount-WindowsImage -Path $lln -ImagePath "$($LabConfig.VMHome)\$($DCMetadata.VMName).vhdx" -Index 1
+    $dst = "$($vhd.DriveLetter):\"
+    Copy-Item $uaf $dst
+    WriteSuccess "Copied unattend file $uaf to $dst"
+    WriteInfo "Copying $DCPromoScriptFile to $dst"
+    Copy-Item $DCPromoScriptFile $dst
+    WriteSuccess "Copied $DCPromoScriptFile to $dst"
+}
+catch{
+    WriteError $_.Exception.Message
+}
+finally{
+    WriteInfo "Dismounting $DCVHD"
+    Dismount-VHD $DCVHD
+    WriteInfo "Dismounted $DCVHD"
+
+# Attach VHD file to VM
+WriteInfo "Attaching $DCVHD"
+Add-VMHardDiskDrive -VMName $DCName -ControllerType SCSI -Path $DCVHD -ErrorAction SilentlyContinue
+WriteInfo "Attached $DCVHD to Virtual Machine $DCName"
+
+# Start VM
+Start-VM $DCName
+
+#endregion
+}
