@@ -7,11 +7,13 @@ $LabConfig = @{Root = "$home\SCLAB"; DomainAdmin = 'LabAdmin';AdminPassword = 'P
                 VMs = @()}
 
 #Add DC's info
-$LabConfig.VMs += @{VMName="SCLABDC01";MachineType="DomainController";ParentVHD = "Win2016_DC_Core_G2.vhdx";MemoryStartupBytes = 2GB;CpuCores = 4;}
-1..4 | ForEach-Object {$VMNames="SOFS0"; $LabConfig.VMs += @{ VMName = "$VMNames$_" ; MachineType = "ScaleOutFileServer" ;`
-                        ParentVHD = "Win2016Core_G2.vhdx"; SSDNumber = 0; SSDSize = 800GB ; HDDNumber = 12; HDDSize = 4TB; MemoryStartupBytes = 512MB}}
-1..4 | ForEach-Object {$VMNames="SCHOST0"; $LabConfig.VMs += @{ VMName = "$VMNames$_"; MachineType = "Hyper-VHost";`
-                        ParentVHD = "Win2016Core_G2.vhdx"; SSDNumber =0; SSDSize = 800GB; HDDNumber = 0; HDDSize = 4TB; MemoryStartupBytes = 8192MB}}
+$LabConfig.VMs += @{VMName="SCLABDC01";Role="DomainController";ParentVHD = "Win2016_DC_Core_G2.vhdx";MemoryStartupBytes = 2GB;CpuCores = 4;}
+1..4 | ForEach-Object {$VMNames="SOFS0"; $LabConfig.VMs += @{ VMName = "$VMNames$_" ; Role = "ScaleOutFileServer" ;`
+                        ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB;MemoryStartupBytes = 2GB;CpuCores = 4; SSDNumber = 6;SSDSize = 800GB;`
+                        HDDNumber = 12; HDDSize = 4TB}}
+1..4 | ForEach-Object {$VMNames="SCHOST0"; $LabConfig.VMs += @{ VMName = "$VMNames$_"; Role = "Hyper-VHost";`
+                        ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB;MemoryStartupBytes = 2GB;CpuCores = 4;SSDNumber =0; SSDSize = 800GB;`
+                        HDDNumber = 0; HDDSize = 4TB}}
 
 # Verify Running as Admin rights
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).isInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
@@ -515,7 +517,7 @@ Install-ADDSForest -DomainName $($Labconfig.DomainName) -DomainNetBIOSName $($La
 #region Deploy DC
 WriteInfo "Starting Deploy DomainController"
 WriteInfo "`tGetting DC's information from Variable"
-$DCMetadata = $LabConfig.VMs | Where-Object {$_.MachineType -eq "DomainController"}
+$DCMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "DomainController"}
 $DCName = $DCMetadata.VMName
 $DCCpuCores = $DCMetadata.CpuCores
 $DCVHD = "$($LabConfig.VMHome)\$($DCMetadata.VMName).vhdx"
@@ -524,8 +526,8 @@ WriteInfo "`tINFO: VMName -  $DCName"
 WriteInfo "`tINFO: CpuCores - $DCCpuCores"
 WriteInfo "Create unattend file"
 $TimeZone = (Get-TimeZone).id
-$uaf = CreateUnattendFile -ComputerName $DCName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $DCMetadata.MachineType -JoinDomain $true
-$DCPromoScriptFile = CreateFirstLogonScriptFile -Role $DCMetadata.MachineType
+$uaf = CreateUnattendFile -ComputerName $DCName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $DCMetadata.Role -JoinDomain $true
+$DCPromoScriptFile = CreateFirstLogonScriptFile -Role $DCMetadata.Role
 # Create a new different VHD
 WriteInfo "Starting Create a VHD file $DCVHD from parent disk - $DCParentVHD"
 try{
@@ -574,7 +576,7 @@ try{
     #$ll = (Get-Volume).DriveLetter | Sort-Object | Select-Object -last 1
     #$lln = "$([char](([int]$ll)+1))" + ":\"
     # The VHD file contains multiple partitions, use where-object to filter out non-NTFS partitions.
-    $vhd = Mount-VHD -Path $DCVHD -Passthru | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
+    $vhd = Mount-VHD -Path $DCVHD -Passthru -ErrorAction SilentlyContinue | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
     #$vhd = Mount-WindowsImage -Path $lln -ImagePath "$($LabConfig.VMHome)\$($DCMetadata.VMName).vhdx" -Index 1
     $dst = "$($vhd.DriveLetter):\"
     Copy-Item $uaf $dst
@@ -588,9 +590,9 @@ catch{
 }
 finally{
     WriteInfo "Dismounting $DCVHD"
-    Dismount-VHD $DCVHD
+    Dismount-VHD $DCVHD -ErrorAction SilentlyContinue
     WriteInfo "Dismounted $DCVHD"
-
+}
 # Attach VHD file to VM
 WriteInfo "Attaching $DCVHD"
 Add-VMHardDiskDrive -VMName $DCName -ControllerType SCSI -Path $DCVHD -ErrorAction SilentlyContinue
@@ -600,4 +602,86 @@ WriteInfo "Attached $DCVHD to Virtual Machine $DCName"
 Start-VM $DCName
 
 #endregion
+
+#region Deploy Scale-Out File Server
+WriteInfo "Starting Deploy Scale-Out File Server"
+WriteInfo "`tGetting Scale-Out File Servers information from Variable"
+$SOFSMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "ScaleOutFileServer"}
+function BuildVM
+{
+    param(
+        # Parameter help description
+        [Parameter(Mandatory=$true)]
+        [hashtable]
+        $VMMetadata
+    )
+    WriteInfo "Starting Deploy $($VMMetadata.VMName)"
+    WriteInfo "Server role - $($VMMetadata.Role)"
+    WriteInfo "CPU Cores are - $($VMMetadata.CpuCores)"    
+    WriteInfo "Parent VHD - $($VMMetadata.ParentVHD)"
+    WriteInfo "SSD Disks - $($VMMetadata.SSDNumber)"
+    WriteInfo "VM Home folder - $($LabConfig.VMHome)"
+    $VMParentVHD = "$($LabConfig.VHDStore)\ParentDisks\$($VMMetadata.ParentVHD)"
+    $VMOSVhd = "$($LabConfig.VMHome)\$($VMMetadata.VMName).vhdx"
+    WriteInfo "VM OS Disk - $VMOSVhd"
+    $VMOSVhdSizeGB = $VMMetadata.OSVHDSize/1GB
+    WriteInfo "VM OS VHD Size - $VMOSVhdSizeGB GB"
+    WriteInfo "Creating unattend file for unattend windows installation"
+    $TimeZone = (Get-TimeZone).id
+    $uaf = CreateUnattendFile -ComputerName $($VMMetadata.VMName) -AdminPassword $($LabConfig.AdminPassword) -TimeZone $TimeZone -Role $($VMMetadata.Role) -JoinDomain $true
+    $FirstLogonScriptFile = CreateFirstLogonScriptFile -Role $VMMetadata.Role
+
+    # Create a different VHD file from parent VHD to resides OS
+    WriteInfo "Starting Create a VHD file from parent disk - $($VMMetadata.ParentVHD)"
+    try
+    {
+        if(!(Test-Path $VMOSVhd))
+        {
+            WriteInfo "Creating $VMOSVhd from $VMParentVHD"
+            New-VHD -ParentPath $VMParentVHD -Path $VMOSVhd -SizeBytes $VMMetadata.OSVHDSize -Differencing
+            WriteInfo "$VMOSVhd created"
+        }
+        else
+        {
+            WriteInfo "$VMOSVhd is already exists"    
+        }
+    }
+    catch
+    {
+        WriteError "Create $VMOSVhd failed"
+        WriteError $_.Exception.Message   
+    }
+
+    # Create SSD and HDD VHD files
+    $SSD_Count = $VMMetadata.SSDNumber    
+    if ($SSD_Count -eq "0")
+    {
+        WriteInfo "This VM doesn't require SSD Drivers"
+    }
+    else {
+        WriteInfo "SSD Drivers = $SSD_Count"
+        1..$SSD_Count | foreach-object{
+                $SSDName = "$($VMMetadata.VMName)_SSD_$_.vhdx"
+                WriteInfo "Createing $SSDName in folder $($LABConfig.VMHome)"
+                if (!(Test-Path "$($LABConfig.VMHome)\$SSDName"))
+                    {
+                        New-VHD -Path "$($LABConfig.VMHome)\$SSDName" -SizeBytes $VMMetadata.SSDSize
+                        WriteInfo "Created $SSDName in folder $($LABConfig.VMHome)"
+                    }
+                else
+                    {
+                        WriteInfo "SSD Driver $SSDName is already exist in folder $($LABConfig.VMHome), skip creating"
+                    }
+                
+            }
+    }
+
+    $HDD_Count = $VMMetadata.HDDNumber
+    
 }
+foreach($SOFS in $SOFSMetadata)
+{
+    BuildVM -VMMetadata $SOFS
+}
+#endregion
+
