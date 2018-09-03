@@ -652,8 +652,31 @@ function BuildVM
         WriteError $_.Exception.Message   
     }
 
+      
+    function CreateVHD
+    {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]
+            $Path,
+            [Parameter(Mandatory = $true)]
+            [string]
+            $VHDName,
+            [Parameter(Mandatory = $true)]
+            [int64]
+            $Size
+        )
+        if (!(Test-Path "$Path\$VHDName"))
+        {
+            New-VHD -Path $Path\$VHDName -SizeBytes $Size
+            WriteInfo "Created $VHDName in folder $Path"
+        }
+        else {
+            WriteInfo "VHD $VHDName exists in in Folder $Path, skip creating."
+        }
+    }
     # Create SSD and HDD VHD files
-    $SSD_Count = $VMMetadata.SSDNumber    
+    $SSD_Count = $VMMetadata.SSDNumber  
     if ($SSD_Count -eq "0")
     {
         WriteInfo "This VM doesn't require SSD Drivers"
@@ -662,22 +685,24 @@ function BuildVM
         WriteInfo "SSD Drivers = $SSD_Count"
         1..$SSD_Count | foreach-object{
                 $SSDName = "$($VMMetadata.VMName)_SSD_$_.vhdx"
-                WriteInfo "Createing $SSDName in folder $($LABConfig.VMHome)"
-                if (!(Test-Path "$($LABConfig.VMHome)\$SSDName"))
-                    {
-                        New-VHD -Path "$($LABConfig.VMHome)\$SSDName" -SizeBytes $VMMetadata.SSDSize
-                        WriteInfo "Created $SSDName in folder $($LABConfig.VMHome)"
-                    }
-                else
-                    {
-                        WriteInfo "SSD Driver $SSDName is already exist in folder $($LABConfig.VMHome), skip creating"
-                    }
-                
+                WriteInfo "Creating $SSDName in folder $($LABConfig.VMHome)"
+                CreateVHD -Path $($LABConfig.VMHome) -VHDName $SSDName -Size $VMMetadata.SSDSize
             }
     }
 
     $HDD_Count = $VMMetadata.HDDNumber
-    
+    if ($HDD_Count -eq "0")
+    {
+        WriteInfo "This VM doesn't require HDD Drivers"
+    }
+    else {
+        WriteInfo "HDD Drivers = $HDD_Count"
+        1..$HDD_Count | ForEach-Object{
+            $HDDName = "$($VMMetadata.VMName)_HDD_$_.vhdx"
+            WriteInfo "Creating $HDDName in folder $($LabConfig.VMHome)"
+            CreateVHD -Path $($LabConfig.VMHome) -VHDName $HDDName -Size $VMMetadata.HDDSize
+        }
+    }
 }
 foreach($SOFS in $SOFSMetadata)
 {
