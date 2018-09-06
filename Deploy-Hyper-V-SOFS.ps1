@@ -219,21 +219,30 @@ else {
 
 #Check vSwitch on Host
 WriteInfoHighlighted "Getting vSwitch ..."
-$vmSwitch = Get-VMSwitch
-$vmSwitchCount = $vmSwitch.Count
-if ($vmSwitch)
+$LabSwitch = Get-VMSwitch | Where-Object {($_.SwitchType -eq "External") -and ($_.Name -eq "Lab")}
+$cluSwitch = Get-VMSwitch | Where-Object {($_.SwitchType -eq "Internal") -and ($_.Name -eq "Cluster")}
+
+if ($LabSwitch)
 {
-    WriteInfo "`t There are totally $vmSwitchCount Virtual Switch found"
-    $vmSwitch | Format-Table -AutoSize
+    WriteInfo "`t Listing External vSwitch"
+    $LabSwitch | Format-Table -AutoSize
 }
 else {
     
     WriteInfo "`t Getting Physical NetAdapter"
     $pNic = Get-NetAdapter -Status "Up" -Physical
     WriteInfo "`t Creating virtual Switch - external"
-    New-VMSwitch -Name "Lab" -NetAdapterName $pNIC[0].Name
-    WriteInfo "`t Creating virtual Switch for Storage network"
-    New-VMSwitch -Name "Storage" -SwitchType Internal
+    $LabSwitch = New-VMSwitch -Name "Lab" -NetAdapterName $pNIC[0].Name
+}
+if ($cluSwitch)
+{
+    WriteInfo "`t Listing Internal vSwitch"
+    $cluSwitch | Format-Table -AutoSize
+}
+else
+{
+    WriteInfo "`t Creating virtual Switch for Cluster network"
+    $cluSwitch = New-VMSwitch -Name "Cluster" -SwitchType Internal    
 }
 
 #Finishing
@@ -643,7 +652,7 @@ function BuildVM
         }
         else
         {
-            WriteInfo "$VMOSVhd is already exists"    
+            WriteInfo "$VMOSVhd already exists"    
         }
     }
     catch
@@ -703,7 +712,80 @@ function BuildVM
             CreateVHD -Path $($LabConfig.VMHome) -VHDName $HDDName -Size $VMMetadata.HDDSize
         }
     }
+    try
+    {
+        $vm = Get-VM -Name "$($VMMetadata.VMName)" -ErrorAction SilentlyContinue
+        if ($vm -eq $null)
+        {
+            New-VM -Name $($VMMetadata.VMName) -MemoryStartupBytes $VMMetadata.MemoryStartupBytes -SwitchName "Lab" -Path $($LabConfig.VMHome) -Generation 2 -VHDPath $VMOSVhd
+            WriteInfo "The Deployment of Virtual Machine $($VMMetadata.VMName)"
+            Set-VM -Name $($VMMetadata.VMName) $VMMetadata.CpuCores -CheckpointType Disabled
+
+            # Add 2rd NIC as cluster network
+            Add-VMNetworkAdapter -VMName $VMMetadata.VMName -Name "Cluster"
+        }
+        else
+        {
+            WriteInfo "Virtual Machine $($VMMetadata.VMName) already exists on Host"
+        }    
+    }
+    catch
+    {
+        WriteError "The deployment of Virtual Machine $($VMMetadata.VMName) failed."
+        WriteError $_.Exception.Message
+    }
+    
+    # Copy unattend.xml to VMOSVhd    
+    funtion InjectVHD
+    {
+        param(
+            # Parameter help description
+            [Parameter(Mandatory = $true)]
+            [System.IO.FileSystemInfo]
+            $UnattendFile,
+            # Parameter help description
+            [Parameter(Mandatory = $false)]
+            [string]
+            $ScriptFile,
+            # Parameter help description
+            [Parameter(Mandatory = $true)]
+            [string]
+            $VHDFile)
+        $uaf = CreateUnattendFile -ComputerName $VMMetadata.VMName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $VMMetadata.Role -JoinDomain $true
+        $fls = CreateFirstLogonScriptFile -Role $VMMetadata.Role
+        
+        try
+        {
+            WriteInfo "Copying unattend file to $VMOSVhd"
+            WriteInfo "Mounting VHD File $VMOSVhd to file system"
+            $v = Mount-VHD -Path $VHDFile -Passthru -ErrorAction SilentlyContinue | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
+            $dst = "$($v.DriveLetter):\"
+            Copy-Item $UnattendFile $dst
+            WriteSuccess "Copied unattend file $UnattendFile to $VHDFile"
+            if (Test-Path $ScriptFile)
+            {
+                WriteInfo "Injecting $ScriptFile to $VHDFile"
+                Copy-Item $ScriptFile $dst
+                WriteSuccess "Injected $ScriptFile to $VHDFile"
+            }
+        }
+        Catch
+        {
+            WriteError $_.Exception.Message
+        }
+        Finally
+        {
+            WriteInfo "Dismounting $VHDFile"
+            Dismount-VHD $VHDFile -ErrorAction SilentlyContinue
+            WriteInfo "Dismounted $VHDFile"
+        }
+    }     
 }
+
+    WriteInfo "Attaching $VMOSVhd to Virtual Machine $($VMMetadata.VMName)"
+    Add-VMHardDiskDrive -VMName $VMMetadata.VMName -ControllerType SCSI -Path $VMOSVhd -ErrorAction SilentlyContinue
+    WriteInfo "Attached $VMOSVhd to Virtual Machine $($VMMetadata.VMName)"
+
 foreach($SOFS in $SOFSMetadata)
 {
     BuildVM -VMMetadata $SOFS
