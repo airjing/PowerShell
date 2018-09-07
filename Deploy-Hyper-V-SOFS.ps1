@@ -230,9 +230,9 @@ if ($LabSwitch)
 else {
     
     WriteInfo "`t Getting Physical NetAdapter"
-    $pNic = Get-NetAdapter -Status "Up" -Physical
+    $pNic = Get-NetAdapter -Physical | Where-Object {$_.Status -eq "Up"} | Select-Object -First 1
     WriteInfo "`t Creating virtual Switch - external"
-    $LabSwitch = New-VMSwitch -Name "Lab" -NetAdapterName $pNIC[0].Name
+    $LabSwitch = New-VMSwitch -Name "Lab" -NetAdapterName $pNIC.Name
 }
 if ($cluSwitch)
 {
@@ -320,7 +320,7 @@ function Convert-ISO2VHD{
 }
 
 #grab all parent disks 
-$ParentDisks = (Get-ChildItem "$($LabConfig.VHDStore)\ParentDisks" -ErrorAction SilentlyContinue).Name
+$ParentDisks = Get-ChildItem "$($LabConfig.VHDStore)\ParentDisks" -ErrorAction SilentlyContinue -Include "*.vhdx" -Recurse
 
 if($ParentDisks -eq $null)
 {
@@ -337,7 +337,7 @@ if($ParentDisks -eq $null)
 }
 else
 {
-    WriteInfo "There are $($ParentDisks.Length) Perents Disks exists in $($LabConfig.VHDStore)\ParentDisks"
+    WriteInfo "There are $($ParentDIsks.Count) Perents Disks exists in $($LabConfig.VHDStore)\ParentDisks"
     foreach($d in $ParentDisks)
     {
         WriteInfo $d
@@ -520,6 +520,19 @@ Install-ADDSForest -DomainName $($Labconfig.DomainName) -DomainNetBIOSName $($La
         Set-Content -Path $DCPromoScriptFile -Value $DCPromo
         return $DCPromoScriptFile
     }
+    if($Role -eq "ScaleOutFileServer")
+    {
+        $SOFSDeployScriptFile = "$($Labconfig.Root)\SOFS_Deploy.ps1"
+        if (Test-Path $SOFSDeployScriptFile)
+        {
+            Remove-Item $SOFSDeployScriptFile
+        }
+        $SOFSDeployScriptFileContent = @"
+Install-WindowsFeature -Name File-Services,Failover-Clustering -IncludeManagementTools
+"@
+        Set-Content -Path $SOFSDeployScriptFile -Value $SOFSDeployScriptFileContent
+        return $SOFSDeployScriptFile
+    }
 }
 
 
@@ -564,7 +577,7 @@ try
     if($vmDC -eq $null)
     {
         New-VM -Name $DCMetadata.VMName -MemoryStartupBytes $DCMetadata.MemoryStartupBytes -SwitchName "Lab" -Path $($LabConfig.VMHome) -Generation 2 -VHDPath $DCVHD
-        WriteSuccess "The Deployment of Virtual Machine $DCName) Successful."
+        WriteSuccess "The Deployment of Virtual Machine $DCName Successful."
         # Change CPU Cores and Disable checkpoint
         Set-VM -Name $DCName -ProcessorCount $DCMetadata.CpuCores -CheckpointType Disabled
     }
@@ -633,9 +646,10 @@ function BuildVM
     $VMParentVHDFullName = "$($LabConfig.VHDStore)\ParentDisks\$vmParentVHD"
     $vmHome = "$($LabConfig.VMHome)\$vmName"
     $vmCpuCores = $VMMetadata.CpuCores
+    $vmMemoryStartupBytes = $VMMetadata.MemoryStartupBytes
     $vmOSVhd = "$vmName.vhdx"
-    $vmOSVhdFullName = $vmHome\$vmOSVhd
-    $vmOSVhdSizeGB = $VMMetadata.OSVHDSize/1GB
+    $vmOSVhdFullName = "$vmHome\$vmOSVhd"
+    $vmOSVhdSizeGB = $VMMetadata.OSVHDSize
     $TimeZone = (Get-TimeZone).id
     $SSD_Count = $VMMetadata.SSDNumber
     $SSD_Size = $VMMetadata.SSDSize
@@ -660,7 +674,7 @@ function BuildVM
         )
         if (!(Test-Path "$Path\$VHDName"))
         {
-            New-VHD -Path $Path\$VHDName -SizeBytes $Size
+            New-VHD -Path "$Path\$VHDName" -SizeBytes $Size
             WriteInfo "Created $VHDName in folder $Path"
         }
         else {
@@ -683,8 +697,8 @@ function BuildVM
             [Parameter(Mandatory = $true)]
             [string]
             $VHDFile)
-        $uaf = CreateUnattendFile -ComputerName $VMMetadata.VMName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $VMMetadata.Role -JoinDomain $true
-        $fls = CreateFirstLogonScriptFile -Role $VMMetadata.Role
+        #$uaf = CreateUnattendFile -ComputerName $VMMetadata.VMName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $VMMetadata.Role -JoinDomain $true
+        #$fls = CreateFirstLogonScriptFile -Role $VMMetadata.Role
         
         try
         {
@@ -738,11 +752,12 @@ function BuildVM
             {
                 WriteInfo "SSD Drivers = $SSD_Count"
                 1..$SSD_Count | foreach-object{
-                        $SSDName = "$vmName_SSD_$_.vhdx"
+                        $SSDName = "$vmName" + "_SSD_" + "$_.vhdx"
                         WriteInfo "Creating $SSDName in folder $vmHome"
                         $ssd= $null
-                        $ssd = CreateVHD -Path $vmHome -VHDName $SSDName -Size $SSDSize
-                        Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $ssd -ErrorAction SilentlyContinue
+                        $ssd = CreateVHD -Path $vmHome -VHDName $SSDName -Size $SSD_Size
+                        #Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $ssd -ErrorAction SilentlyContinue
+                        $vm | Add-VMHardDiskDrive -ControllerType SCSI -ControllerLocation 
                     }
             }
             
@@ -754,9 +769,9 @@ function BuildVM
             {
                 WriteInfo "HDD Drivers = $HDD_Count"
                 1..$HDD_Count | ForEach-Object{
-                    $HDDName = "$vmName_HDD_$_.vhdx"
+                    $HDDName = "$vmName" + "_HDD_" + "$_.vhdx"
                     WriteInfo "Creating $HDDName in folder $vmHome"
-                    $hdd = CreateVHD -Path $vmHome -VHDName $HDDName -Size $HDDSize
+                    $hdd = CreateVHD -Path $vmHome -VHDName $HDDName -Size $HDD_Size
                     Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $hdd -ErrorAction SilentlyContinue
                 }
             }
@@ -766,12 +781,17 @@ function BuildVM
 
     WriteInfo "Starting Deploy $vmName"
     WriteInfo "Server role - $vmServerRole"
-    WriteInfo "CPU Cores are - $vmCpuCores"    
+    WriteInfo "CPU Cores are - $vmCpuCores"
+    WriteInfo "VM with RAM - $vmMemoryStartupBytes"
     WriteInfo "Parent VHD - $vmParentVHD"
-    WriteInfo "SSD Disks - $SSDNumber)"
     WriteInfo "VM Home folder - $vmHome"
     WriteInfo "VM OS Disk - $VMOSVhd"
-    WriteInfo "VM OS VHD Size - $VMOSVhdSizeGB GB"
+    WriteInfo "VM OS VHD Size - $($VMOSVhdSizeGB/1GB) GB"
+    WriteInfo "SSD Disks - $SSD_Count"
+    WriteInfo "SSD Size  - $($SSD_Size/1GB) GB"
+    WriteInfo "HDD Disks - $HDD_Count"
+    WriteInfo "HDD_Size - $($HDD_Size/1GB) GB"
+
 
     # Create a different VHD file from parent VHD to resides OS
     WriteInfo "Starting Create a VHD file from parent disk - $vmParentVHDFullName"
@@ -800,30 +820,34 @@ function BuildVM
     # code block for VM create
     try
     {
-        $vm = Get-VM -Name "$($VMMetadata.VMName)" -ErrorAction SilentlyContinue
+        $vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
         if ($vm -eq $null)
         {
-            New-VM -Name $($VMMetadata.VMName) -MemoryStartupBytes $VMMetadata.MemoryStartupBytes -SwitchName "Lab" -Path $($LabConfig.VMHome) -Generation 2 -VHDPath $VMOSVhd
-            WriteInfo "The Deployment of Virtual Machine $($VMMetadata.VMName)"
-            Set-VM -Name $($VMMetadata.VMName) $VMMetadata.CpuCores -CheckpointType Disabled
+            New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName "Lab" -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
+            WriteInfo "The Deployment of Virtual Machine $vmName Successed"
+            Set-VM -Name $vmName -ProcessorCount $vmCpuCores -CheckpointType Disabled
 
             # Add 2rd NIC as cluster network
-            Add-VMNetworkAdapter -VMName $VMMetadata.VMName -Name "Cluster"
+            Add-VMNetworkAdapter -VMName $vmName -Name "Cluster" -SwitchName "Cluster"
 
-            WriteInfo "Attaching $VMOSVhd to Virtual Machine $($VMMetadata.VMName)"
-            Add-VMHardDiskDrive -VMName $VMMetadata.VMName -ControllerType SCSI -Path $VMOSVhd -ErrorAction SilentlyContinue
-            WriteInfo "Attached $VMOSVhd to Virtual Machine $($VMMetadata.VMName)"
+            WriteInfo "Attaching $vmOSVhdFullName to Virtual Machine $vmName"
+            Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vmOSVhdFullName -ErrorAction SilentlyContinue
+
+            WriteInfo "Attached $vmOSVhdFullName to Virtual Machine $vmName"
         }
         else
         {
-            WriteInfo "Virtual Machine $($VMMetadata.VMName) already exists on Host"
+            WriteInfo "Virtual Machine $vmName already exists on Host"
         }    
     }
     catch
     {
-        WriteError "The deployment of Virtual Machine $($VMMetadata.VMName) failed."
+        WriteError "The deployment of Virtual Machine $vmName failed."
         WriteError $_.Exception.Message
-    }  
+    }
+    # Create VHDs for SSD and HDDs then attach to VM
+    Attach-VhdToVM -VMMetadata $VMMetadata
+    Start-VM -Name $vmName
 }    
 foreach($SOFS in $SOFSMetadata)
 {
