@@ -1,0 +1,92 @@
+#region Deploy DC
+WriteInfo "Starting Deploy DomainController"
+WriteInfo "`tGetting DC's information from Variable"
+$DCMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "DomainController"}
+$DCName = $DCMetadata.VMName
+$DCCpuCores = $DCMetadata.CpuCores
+$DCVHD = "$($LabConfig.VMHome)\$($DCMetadata.VMName).vhdx"
+$DCParentVHD = "$($LabConfig.VHDStore)\ParentDisks\$($DCMetaData.ParentVHD)"
+WriteInfo "`tINFO: VMName -  $DCName"
+WriteInfo "`tINFO: CpuCores - $DCCpuCores"
+WriteInfo "Create unattend file"
+$TimeZone = (Get-TimeZone).id
+$uaf = CreateUnattendFile -ComputerName $DCName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $DCMetadata.Role -JoinDomain $true
+$DCPromoScriptFile = CreateFirstLogonScriptFile -Role $DCMetadata.Role
+# Create a new different VHD
+WriteInfo "Starting Create a VHD file $DCVHD from parent disk - $DCParentVHD"
+try{
+    if(!(Test-Path $DCVHD))
+    {
+        New-VHD -ParentPath $DCParentVHD -Path $DCVHD -SizeByte 100GB -Differencing
+        WriteSuccess "The $DCVHD created. "
+    }
+    else {
+        WriteInfo "$DCVHD is already exists"
+    }
+}
+catch{
+    WriteError "Create VHD failed"
+    WriteError $_.Exception.Message
+}
+
+# Create the virtual Domain Controller
+WriteInfo "Starting Deploy $DCName ..."
+try
+{
+    $vmDC = Get-VM -Name $DCName -ErrorAction SilentlyContinue
+    if($vmDC -eq $null)
+    {
+        New-VM -Name $DCMetadata.VMName -MemoryStartupBytes $DCMetadata.MemoryStartupBytes -SwitchName "Lab" -Path $($LabConfig.VMHome) -Generation 2 -VHDPath $DCVHD
+        WriteSuccess "The Deployment of Virtual Machine $DCName Successful."
+        # Change CPU Cores and Disable checkpoint
+        Set-VM -Name $DCName -ProcessorCount $DCMetadata.CpuCores -CheckpointType Disabled
+    }
+    else {
+        WriteInfo "Virtual Machine $DCName is already exists on HOST"
+    }
+    
+}
+Catch
+{
+    WriteError "The deployment of Virtual Machine $DCMetadata.VMName failed."
+    WriteError $_.Exception.Message
+}
+
+# Copy unattend.xml to VHD
+WriteInfo "Copying unattend file to $DCVHD"
+WriteInfo "Mounting VHD file $DCVHD to file system."
+try{
+    #Get the last available driver letter
+    #$ll = (Get-Volume).DriveLetter | Sort-Object | Select-Object -last 1
+    #$lln = "$([char](([int]$ll)+1))" + ":\"
+    # The VHD file contains multiple partitions, use where-object to filter out non-NTFS partitions.
+    $vhd = Mount-VHD -Path $DCVHD -Passthru -ErrorAction SilentlyContinue | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
+    #$vhd = Mount-WindowsImage -Path $lln -ImagePath "$($LabConfig.VMHome)\$($DCMetadata.VMName).vhdx" -Index 1
+    $dst = "$($vhd.DriveLetter):\"
+    Copy-Item $uaf $dst
+    WriteSuccess "Copied unattend file $uaf to $dst"
+    WriteInfo "Copying $DCPromoScriptFile to $dst"
+    Copy-Item $DCPromoScriptFile $dst
+    WriteSuccess "Copied $DCPromoScriptFile to $dst"
+}
+catch{
+    WriteError $_.Exception.Message
+}
+finally{
+    WriteInfo "Dismounting $DCVHD"
+    Dismount-VHD $DCVHD -ErrorAction SilentlyContinue
+    WriteInfo "Dismounted $DCVHD"
+}
+# Attach VHD file to VM
+WriteInfo "Attaching $DCVHD"
+Add-VMHardDiskDrive -VMName $DCName -ControllerType SCSI -Path $DCVHD -ErrorAction SilentlyContinue
+WriteInfo "Attached $DCVHD to Virtual Machine $DCName"
+
+# Start VM
+Start-VM $DCName
+
+#endregion
+
+
+
+

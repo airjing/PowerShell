@@ -7,12 +7,12 @@ $LabConfig = @{Root = "$home\SCLAB"; DomainAdmin = 'LabAdmin';AdminPassword = 'P
                 VMs = @()}
 
 #Add DC's info
-$LabConfig.VMs += @{VMName="SCLABDC01";Role="DomainController";ParentVHD = "Win2016_DC_Core_G2.vhdx";MemoryStartupBytes = 2GB;CpuCores = 4;}
+$LabConfig.VMs += @{VMName = "SCLABDC01"; Role="DomainController"; ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 100GB; MemoryStartupBytes = 2GB; CpuCores = 4;}
 1..4 | ForEach-Object {$VMNames="SOFS0"; $LabConfig.VMs += @{ VMName = "$VMNames$_" ; Role = "ScaleOutFileServer" ;`
-                        ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB;MemoryStartupBytes = 2GB;CpuCores = 4; SSDNumber = 6;SSDSize = 800GB;`
+                        ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB; MemoryStartupBytes = 2GB; CpuCores = 4; SSDNumber = 6; SSDSize = 800GB;`
                         HDDNumber = 12; HDDSize = 4TB}}
 1..4 | ForEach-Object {$VMNames="SCHOST0"; $LabConfig.VMs += @{ VMName = "$VMNames$_"; Role = "Hyper-VHost";`
-                        ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB;MemoryStartupBytes = 2GB;CpuCores = 4;SSDNumber =0; SSDSize = 800GB;`
+                        ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB; MemoryStartupBytes = 2GB; CpuCores = 4; SSDNumber =0; SSDSize = 800GB;`
                         HDDNumber = 0; HDDSize = 4TB}}
 
 # Verify Running as Admin rights
@@ -112,6 +112,232 @@ function Prepare-PSRemoting {
     WriteInfo "The Current Trusted Hosts is $curHosts"
      
     
+}
+
+function BuildVM
+{
+    param(
+        # Parameter help description
+        [Parameter(Mandatory=$true)]
+        [hashtable]
+        $VMMetadata
+    )
+    # extract variable from $VMMetadata hashtable
+    $vmName = $VMMetadata.VMName
+    $vmServerRole = $VMMetadata.Role
+    $vmParentVHD = $VMMetadata.ParentVHD
+    $VMParentVHDFullName = "$($LabConfig.VHDStore)\ParentDisks\$vmParentVHD"
+    $vmHome = "$($LabConfig.VMHome)\$vmName"
+    $vmCpuCores = $VMMetadata.CpuCores
+    $vmMemoryStartupBytes = $VMMetadata.MemoryStartupBytes
+    $vmOSVhd = "$vmName.vhdx"
+    $vmOSVhdFullName = "$vmHome\$vmOSVhd"
+    $vmOSVhdSizeGB = $VMMetadata.OSVHDSize
+    $TimeZone = (Get-TimeZone).id
+    $SSD_Count = $VMMetadata.SSDNumber
+    $SSD_Size = $VMMetadata.SSDSize
+    $HDD_Count = $VMMetadata.HDDNumber
+    $HDD_Size = $VMMetadata.HDDSize
+    $vmUaf = CreateUnattendFile -ComputerName $vmName -AdminPassword $($LabConfig.AdminPassword) -TimeZone $TimeZone -Role $vmServerRole -JoinDomain $true
+    $vmFirstLogonScriptFile = CreateFirstLogonScriptFile -Role $vmServerRole
+
+    # functions within BuildVM
+    function CreateVHD
+    {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]
+            $Path,
+            [Parameter(Mandatory = $true)]
+            [string]
+            $VHDName,
+            [Parameter(Mandatory = $true)]
+            [int64]
+            $Size
+        )
+        if (!(Test-Path "$Path\$VHDName"))
+        {
+            New-VHD -Path "$Path\$VHDName" -SizeBytes $Size
+            WriteInfo "Created $VHDName in folder $Path"
+        }
+        else {
+            WriteInfo "VHD $VHDName exists in in Folder $Path, skip creating."
+        }
+    }
+
+    function InjectVHD
+    {
+        param(
+            # Parameter help description
+            [Parameter(Mandatory = $true)]
+            [System.IO.FileSystemInfo]
+            $UnattendFile,
+            # Parameter help description
+            [Parameter(Mandatory = $false)]
+            [string]
+            $ScriptFile,
+            # Parameter help description
+            [Parameter(Mandatory = $true)]
+            [string]
+            $VHDFile)
+        #$uaf = CreateUnattendFile -ComputerName $VMMetadata.VMName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $VMMetadata.Role -JoinDomain $true
+        #$fls = CreateFirstLogonScriptFile -Role $VMMetadata.Role
+        
+        try
+        {
+            WriteInfo "Copying unattend file to $VMOSVhd"
+            WriteInfo "Mounting VHD File $VMOSVhd to file system"
+            $v = Mount-VHD -Path $VHDFile -Passthru -ErrorAction SilentlyContinue | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
+            $dst = "$($v.DriveLetter):\"
+            Copy-Item $UnattendFile $dst
+            WriteSuccess "Copied unattend file $UnattendFile to $VHDFile"
+            if (Test-Path $ScriptFile)
+            {
+                WriteInfo "Injecting $ScriptFile to $VHDFile"
+                Copy-Item $ScriptFile $dst
+                WriteSuccess "Injected $ScriptFile to $VHDFile"
+            }
+        }
+        Catch
+        {
+            WriteError $_.Exception.Message
+        }
+        Finally
+        {
+            WriteInfo "Dismounting $VHDFile"
+            Dismount-VHD $VHDFile -ErrorAction SilentlyContinue
+            WriteInfo "Dismounted $VHDFile"
+        }
+    }     
+    function Attach-VhdToVM
+    {
+        param
+        (
+            # Parameter help description
+            [Parameter(mandatory = $true)]
+            [hashtable]
+            $VMMetadata
+        )
+        $vm =Get-VM -Name $vmName -ErrorAction SilentlyContinue
+        if (!$vm)
+        {
+            WriteError "The Virtual Machine $vmName doesn't exist, please create that VM first."
+            return -1
+        }
+        else
+        {
+            # Create SSD and HDD VHD files         
+            if (($SSD_Count -eq "0") -or ($SSD_Count -eq $null))
+            {
+                WriteInfo "This VM doesn't require SSD Drivers"
+            }
+            else
+            {
+                WriteInfo "SSD Drivers = $SSD_Count"
+                1..$SSD_Count | foreach-object{
+                        $SSDName = "$vmName" + "_SSD_" + "$_.vhdx"
+                        WriteInfo "Creating $SSDName in folder $vmHome"                        
+                        $ssd = CreateVHD -Path $vmHome -VHDName $SSDName -Size $SSD_Size
+                        #Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $ssd -ErrorAction SilentlyContinue
+                        if($ssd -ne $null)
+                        {
+                            $vm | Add-VMHardDiskDrive -ControllerType SCSI -Path $ssd.Path -ErrorAction SilentlyContinue
+                        }
+                        
+                    }
+            }
+            
+            if (($HDD_Count -eq "0") -or ($HDD_Count -eq $null))
+            {
+                WriteInfo "This VM doesn't require HDD Drivers"
+            }
+            else
+            {
+                WriteInfo "HDD Drivers = $HDD_Count"
+                1..$HDD_Count | ForEach-Object{
+                    $HDDName = "$vmName" + "_HDD_" + "$_.vhdx"
+                    WriteInfo "Creating $HDDName in folder $vmHome"
+                    $hdd = CreateVHD -Path $vmHome -VHDName $HDDName -Size $HDD_Size
+                    if($hdd -ne $null)
+                    {
+                        $vm | Add-VMHardDiskDrive -ControllerType SCSI -Path $hdd.Path -ErrorAction SilentlyContinue
+                    }
+                    
+                }
+            }
+        }
+    }
+    # end fuctions
+
+    WriteInfo "Starting Deploy $vmName"
+    WriteInfo "Server role - $vmServerRole"
+    WriteInfo "CPU Cores are - $vmCpuCores"
+    WriteInfo "VM with RAM - $vmMemoryStartupBytes"
+    WriteInfo "Parent VHD - $vmParentVHD"
+    WriteInfo "VM Home folder - $vmHome"
+    WriteInfo "VM OS Disk - $VMOSVhd"
+    WriteInfo "VM OS VHD Size - $($VMOSVhdSizeGB/1GB) GB"
+    WriteInfo "SSD Disks - $SSD_Count"
+    WriteInfo "SSD Size  - $($SSD_Size/1GB) GB"
+    WriteInfo "HDD Disks - $HDD_Count"
+    WriteInfo "HDD Size  - $($HDD_Size/1GB) GB"
+
+
+    # Create a different VHD file from parent VHD to resides OS
+    WriteInfo "Starting Create a VHD file from parent disk - $vmParentVHDFullName"
+    try
+    {
+        if(!(Test-Path $vmOSVhdFullName))
+        {
+            WriteInfo "Creating $vmOSVhd from $vmParentVHD"
+            New-VHD -ParentPath $VMParentVHDFullName -Path $vmOSVhdFullName -SizeBytes $vmOSVhdSizeGB -Differencing
+            WriteInfo "$vmOSVhdFullName created"
+        }
+        else
+        {
+            WriteInfo "$vmOSVhdFullName already exists"    
+        }
+    }
+    catch
+    {
+        WriteError "Create $vmOSVhdFullName failed"
+        WriteError $_.Exception.Message   
+    }
+    
+    # Inject unattend and script files into vmOSVhd
+    InjectVHD -UnattendFile $vmUaf -ScriptFile $vmFirstLogonScriptFile -VHDFile $vmOSVhdFullName
+
+    # code block for VM create
+    try
+    {
+        $vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+        if ($vm -eq $null)
+        {
+            New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName "Lab" -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
+            WriteInfo "The Deployment of Virtual Machine $vmName Successed"
+            Set-VM -Name $vmName -ProcessorCount $vmCpuCores -CheckpointType Disabled
+
+            # Add 2rd NIC as cluster network
+            Add-VMNetworkAdapter -VMName $vmName -Name "Cluster" -SwitchName "Cluster"
+
+            WriteInfo "Attaching $vmOSVhdFullName to Virtual Machine $vmName"
+            Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vmOSVhdFullName -ErrorAction SilentlyContinue
+
+            WriteInfo "Attached $vmOSVhdFullName to Virtual Machine $vmName"
+        }
+        else
+        {
+            WriteInfo "Virtual Machine $vmName already exists on Host"
+        }    
+    }
+    catch
+    {
+        WriteError "The deployment of Virtual Machine $vmName failed."
+        WriteError $_.Exception.Message
+    }
+    # Create VHDs for SSD and HDDs then attach to VM
+    Attach-VhdToVM -VMMetadata $VMMetadata
+    Start-VM -Name $vmName
 }
 
 #endregion
@@ -535,320 +761,22 @@ Install-WindowsFeature -Name File-Services,Failover-Clustering -IncludeManagemen
     }
 }
 
-
 #endregion
 
-#region Deploy DC
-WriteInfo "Starting Deploy DomainController"
-WriteInfo "`tGetting DC's information from Variable"
+#region Deploy Domain Controller
+WriteInfo "Starting Deploy Domain Controller"
+WriteInfo "`t Getting Domain Controller information from Variable"
 $DCMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "DomainController"}
-$DCName = $DCMetadata.VMName
-$DCCpuCores = $DCMetadata.CpuCores
-$DCVHD = "$($LabConfig.VMHome)\$($DCMetadata.VMName).vhdx"
-$DCParentVHD = "$($LabConfig.VHDStore)\ParentDisks\$($DCMetaData.ParentVHD)"
-WriteInfo "`tINFO: VMName -  $DCName"
-WriteInfo "`tINFO: CpuCores - $DCCpuCores"
-WriteInfo "Create unattend file"
-$TimeZone = (Get-TimeZone).id
-$uaf = CreateUnattendFile -ComputerName $DCName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $DCMetadata.Role -JoinDomain $true
-$DCPromoScriptFile = CreateFirstLogonScriptFile -Role $DCMetadata.Role
-# Create a new different VHD
-WriteInfo "Starting Create a VHD file $DCVHD from parent disk - $DCParentVHD"
-try{
-    if(!(Test-Path $DCVHD))
-    {
-        New-VHD -ParentPath $DCParentVHD -Path $DCVHD -SizeByte 100GB -Differencing
-        WriteSuccess "The $DCVHD created. "
-    }
-    else {
-        WriteInfo "$DCVHD is already exists"
-    }
-}
-catch{
-    WriteError "Create VHD failed"
-    WriteError $_.Exception.Message
-}
-
-# Create the virtual Domain Controller
-WriteInfo "Starting Deploy $DCName ..."
-try
+foreach ($dc in $DCMetadata)
 {
-    $vmDC = Get-VM -Name $DCName -ErrorAction SilentlyContinue
-    if($vmDC -eq $null)
-    {
-        New-VM -Name $DCMetadata.VMName -MemoryStartupBytes $DCMetadata.MemoryStartupBytes -SwitchName "Lab" -Path $($LabConfig.VMHome) -Generation 2 -VHDPath $DCVHD
-        WriteSuccess "The Deployment of Virtual Machine $DCName Successful."
-        # Change CPU Cores and Disable checkpoint
-        Set-VM -Name $DCName -ProcessorCount $DCMetadata.CpuCores -CheckpointType Disabled
-    }
-    else {
-        WriteInfo "Virtual Machine $DCName is already exists on HOST"
-    }
-    
+    BuildVM -VMMetadata $dc
 }
-Catch
-{
-    WriteError "The deployment of Virtual Machine $DCMetadata.VMName failed."
-    WriteError $_.Exception.Message
-}
-
-# Copy unattend.xml to VHD
-WriteInfo "Copying unattend file to $DCVHD"
-WriteInfo "Mounting VHD file $DCVHD to file system."
-try{
-    #Get the last available driver letter
-    #$ll = (Get-Volume).DriveLetter | Sort-Object | Select-Object -last 1
-    #$lln = "$([char](([int]$ll)+1))" + ":\"
-    # The VHD file contains multiple partitions, use where-object to filter out non-NTFS partitions.
-    $vhd = Mount-VHD -Path $DCVHD -Passthru -ErrorAction SilentlyContinue | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
-    #$vhd = Mount-WindowsImage -Path $lln -ImagePath "$($LabConfig.VMHome)\$($DCMetadata.VMName).vhdx" -Index 1
-    $dst = "$($vhd.DriveLetter):\"
-    Copy-Item $uaf $dst
-    WriteSuccess "Copied unattend file $uaf to $dst"
-    WriteInfo "Copying $DCPromoScriptFile to $dst"
-    Copy-Item $DCPromoScriptFile $dst
-    WriteSuccess "Copied $DCPromoScriptFile to $dst"
-}
-catch{
-    WriteError $_.Exception.Message
-}
-finally{
-    WriteInfo "Dismounting $DCVHD"
-    Dismount-VHD $DCVHD -ErrorAction SilentlyContinue
-    WriteInfo "Dismounted $DCVHD"
-}
-# Attach VHD file to VM
-WriteInfo "Attaching $DCVHD"
-Add-VMHardDiskDrive -VMName $DCName -ControllerType SCSI -Path $DCVHD -ErrorAction SilentlyContinue
-WriteInfo "Attached $DCVHD to Virtual Machine $DCName"
-
-# Start VM
-Start-VM $DCName
-
 #endregion
 
 #region Deploy Scale-Out File Server
 WriteInfo "Starting Deploy Scale-Out File Server"
 WriteInfo "`tGetting Scale-Out File Servers information from Variable"
 $SOFSMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "ScaleOutFileServer"}
-function BuildVM
-{
-    param(
-        # Parameter help description
-        [Parameter(Mandatory=$true)]
-        [hashtable]
-        $VMMetadata
-    )
-    # extract variable from $VMMetadata hashtable
-    $vmName = $VMMetadata.VMName
-    $vmServerRole = $VMMetadata.Role
-    $vmParentVHD = $VMMetadata.ParentVHD
-    $VMParentVHDFullName = "$($LabConfig.VHDStore)\ParentDisks\$vmParentVHD"
-    $vmHome = "$($LabConfig.VMHome)\$vmName"
-    $vmCpuCores = $VMMetadata.CpuCores
-    $vmMemoryStartupBytes = $VMMetadata.MemoryStartupBytes
-    $vmOSVhd = "$vmName.vhdx"
-    $vmOSVhdFullName = "$vmHome\$vmOSVhd"
-    $vmOSVhdSizeGB = $VMMetadata.OSVHDSize
-    $TimeZone = (Get-TimeZone).id
-    $SSD_Count = $VMMetadata.SSDNumber
-    $SSD_Size = $VMMetadata.SSDSize
-    $HDD_Count = $VMMetadata.HDDNumber
-    $HDD_Size = $VMMetadata.HDDSize
-    $vmUaf = CreateUnattendFile -ComputerName $vmName -AdminPassword $($LabConfig.AdminPassword) -TimeZone $TimeZone -Role $vmServerRole -JoinDomain $true
-    $vmFirstLogonScriptFile = CreateFirstLogonScriptFile -Role $vmServerRole
-
-    # functions within BuildVM
-    function CreateVHD
-    {
-        param(
-            [Parameter(Mandatory = $true)]
-            [string]
-            $Path,
-            [Parameter(Mandatory = $true)]
-            [string]
-            $VHDName,
-            [Parameter(Mandatory = $true)]
-            [int64]
-            $Size
-        )
-        if (!(Test-Path "$Path\$VHDName"))
-        {
-            New-VHD -Path "$Path\$VHDName" -SizeBytes $Size
-            WriteInfo "Created $VHDName in folder $Path"
-        }
-        else {
-            WriteInfo "VHD $VHDName exists in in Folder $Path, skip creating."
-        }
-    }
-
-    function InjectVHD
-    {
-        param(
-            # Parameter help description
-            [Parameter(Mandatory = $true)]
-            [System.IO.FileSystemInfo]
-            $UnattendFile,
-            # Parameter help description
-            [Parameter(Mandatory = $false)]
-            [string]
-            $ScriptFile,
-            # Parameter help description
-            [Parameter(Mandatory = $true)]
-            [string]
-            $VHDFile)
-        #$uaf = CreateUnattendFile -ComputerName $VMMetadata.VMName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $VMMetadata.Role -JoinDomain $true
-        #$fls = CreateFirstLogonScriptFile -Role $VMMetadata.Role
-        
-        try
-        {
-            WriteInfo "Copying unattend file to $VMOSVhd"
-            WriteInfo "Mounting VHD File $VMOSVhd to file system"
-            $v = Mount-VHD -Path $VHDFile -Passthru -ErrorAction SilentlyContinue | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
-            $dst = "$($v.DriveLetter):\"
-            Copy-Item $UnattendFile $dst
-            WriteSuccess "Copied unattend file $UnattendFile to $VHDFile"
-            if (Test-Path $ScriptFile)
-            {
-                WriteInfo "Injecting $ScriptFile to $VHDFile"
-                Copy-Item $ScriptFile $dst
-                WriteSuccess "Injected $ScriptFile to $VHDFile"
-            }
-        }
-        Catch
-        {
-            WriteError $_.Exception.Message
-        }
-        Finally
-        {
-            WriteInfo "Dismounting $VHDFile"
-            Dismount-VHD $VHDFile -ErrorAction SilentlyContinue
-            WriteInfo "Dismounted $VHDFile"
-        }
-    }     
-    function Attach-VhdToVM
-    {
-        param
-        (
-            # Parameter help description
-            [Parameter(mandatory = $true)]
-            [hashtable]
-            $VMMetadata
-        )
-        $vm =Get-VM -Name $vmName -ErrorAction SilentlyContinue
-        if (!$vm)
-        {
-            WriteError "The Virtual Machine $vmName doesn't exist, please create that VM first."
-            return -1
-        }
-        else
-        {
-            # Create SSD and HDD VHD files         
-            if ($SSD_Count -eq "0")
-            {
-                WriteInfo "This VM doesn't require SSD Drivers"
-            }
-            else
-            {
-                WriteInfo "SSD Drivers = $SSD_Count"
-                1..$SSD_Count | foreach-object{
-                        $SSDName = "$vmName" + "_SSD_" + "$_.vhdx"
-                        WriteInfo "Creating $SSDName in folder $vmHome"
-                        $ssd= $null
-                        $ssd = CreateVHD -Path $vmHome -VHDName $SSDName -Size $SSD_Size
-                        #Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $ssd -ErrorAction SilentlyContinue
-                        $vm | Add-VMHardDiskDrive -ControllerType SCSI -ControllerLocation 
-                    }
-            }
-            
-            if ($HDD_Count -eq "0")
-            {
-                WriteInfo "This VM doesn't require HDD Drivers"
-            }
-            else
-            {
-                WriteInfo "HDD Drivers = $HDD_Count"
-                1..$HDD_Count | ForEach-Object{
-                    $HDDName = "$vmName" + "_HDD_" + "$_.vhdx"
-                    WriteInfo "Creating $HDDName in folder $vmHome"
-                    $hdd = CreateVHD -Path $vmHome -VHDName $HDDName -Size $HDD_Size
-                    Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $hdd -ErrorAction SilentlyContinue
-                }
-            }
-        }
-    }
-    # end fuctions
-
-    WriteInfo "Starting Deploy $vmName"
-    WriteInfo "Server role - $vmServerRole"
-    WriteInfo "CPU Cores are - $vmCpuCores"
-    WriteInfo "VM with RAM - $vmMemoryStartupBytes"
-    WriteInfo "Parent VHD - $vmParentVHD"
-    WriteInfo "VM Home folder - $vmHome"
-    WriteInfo "VM OS Disk - $VMOSVhd"
-    WriteInfo "VM OS VHD Size - $($VMOSVhdSizeGB/1GB) GB"
-    WriteInfo "SSD Disks - $SSD_Count"
-    WriteInfo "SSD Size  - $($SSD_Size/1GB) GB"
-    WriteInfo "HDD Disks - $HDD_Count"
-    WriteInfo "HDD_Size - $($HDD_Size/1GB) GB"
-
-
-    # Create a different VHD file from parent VHD to resides OS
-    WriteInfo "Starting Create a VHD file from parent disk - $vmParentVHDFullName"
-    try
-    {
-        if(!(Test-Path $vmOSVhdFullName))
-        {
-            WriteInfo "Creating $vmOSVhd from $vmParentVHD"
-            New-VHD -ParentPath $VMParentVHDFullName -Path $vmOSVhdFullName -SizeBytes $vmOSVhdSizeGB -Differencing
-            WriteInfo "$vmOSVhdFullName created"
-        }
-        else
-        {
-            WriteInfo "$vmOSVhdFullName already exists"    
-        }
-    }
-    catch
-    {
-        WriteError "Create $vmOSVhdFullName failed"
-        WriteError $_.Exception.Message   
-    }
-    
-    # Inject unattend and script files into vmOSVhd
-    InjectVHD -UnattendFile $vmUaf -ScriptFile $vmFirstLogonScriptFile -VHDFile $vmOSVhdFullName
-
-    # code block for VM create
-    try
-    {
-        $vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
-        if ($vm -eq $null)
-        {
-            New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName "Lab" -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
-            WriteInfo "The Deployment of Virtual Machine $vmName Successed"
-            Set-VM -Name $vmName -ProcessorCount $vmCpuCores -CheckpointType Disabled
-
-            # Add 2rd NIC as cluster network
-            Add-VMNetworkAdapter -VMName $vmName -Name "Cluster" -SwitchName "Cluster"
-
-            WriteInfo "Attaching $vmOSVhdFullName to Virtual Machine $vmName"
-            Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vmOSVhdFullName -ErrorAction SilentlyContinue
-
-            WriteInfo "Attached $vmOSVhdFullName to Virtual Machine $vmName"
-        }
-        else
-        {
-            WriteInfo "Virtual Machine $vmName already exists on Host"
-        }    
-    }
-    catch
-    {
-        WriteError "The deployment of Virtual Machine $vmName failed."
-        WriteError $_.Exception.Message
-    }
-    # Create VHDs for SSD and HDDs then attach to VM
-    Attach-VhdToVM -VMMetadata $VMMetadata
-    Start-VM -Name $vmName
-}    
 foreach($SOFS in $SOFSMetadata)
 {
     BuildVM -VMMetadata $SOFS
