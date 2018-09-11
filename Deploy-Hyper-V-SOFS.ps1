@@ -8,6 +8,7 @@ $LabConfig = @{Root = "$home\SCLAB"; DomainAdmin = 'LabAdmin';AdminPassword = 'P
 
 #Add DC's info
 $LabConfig.VMs += @{VMName = "SCLABDC01"; Role="DomainController"; ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 100GB; MemoryStartupBytes = 2GB; CpuCores = 4;}
+$LabConfig.VMs += @{VMName = "SCWAC"; Role = "WindowsAdminCenter"; ParentVHD = "Win2016_DC_G2.vhdx"; OSVHDSize = 100GB; MemoryStartupBytes = 4GB; CpuCores =4; Nic0Switch = "Lab"; Nic1Switch = "Cluster"}
 1..4 | ForEach-Object {$VMNames="SOFS0"; $LabConfig.VMs += @{ VMName = "$VMNames$_" ; Role = "ScaleOutFileServer" ;`
                         ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB; MemoryStartupBytes = 2GB; CpuCores = 4; SSDNumber = 6; SSDSize = 800GB;`
                         HDDNumber = 12; HDDSize = 4TB}}
@@ -180,9 +181,7 @@ function BuildVM
             [Parameter(Mandatory = $true)]
             [string]
             $VHDFile)
-        #$uaf = CreateUnattendFile -ComputerName $VMMetadata.VMName -AdminPassword "P@ssword1!" -TimeZone $TimeZone -Role $VMMetadata.Role -JoinDomain $true
-        #$fls = CreateFirstLogonScriptFile -Role $VMMetadata.Role
-        
+
         try
         {
             WriteInfo "Copying unattend file to $VMOSVhd"
@@ -711,6 +710,7 @@ $UnattendSpecializeShellSetup.ComputerName = $ComputerName
 switch($Role)
 {
     "DomainController" {$cmdline = "Powershell.exe C:\DCPromo.ps1"}
+    "WindowsAdminCenter" {$cmdline = "Powershell.exe C:\WAC_Deploy.ps1"}
     "ScaleOutFileServer" {$cmdline = "PowerShell.exe C:\SOFS_Deploy.ps1"}
     "Hyper-VHost" {$cmdline = "PowerShell.exe C:\Hyper-VHost_Deploy.ps1"}
 
@@ -746,6 +746,19 @@ Install-ADDSForest -DomainName $($Labconfig.DomainName) -DomainNetBIOSName $($La
         Set-Content -Path $DCPromoScriptFile -Value $DCPromo
         return $DCPromoScriptFile
     }
+    if($Role -eq "WindowsAdminCenter")
+    {
+        $wacDeployScriptFile = "$($Labconfig.Root)\WAC_Deploy.ps1"
+        if (Test-Path $wacDeployScriptFile)
+        {
+            Remove-Item $wacDeployScriptFile
+        }
+        $wacDeployScriptFileContent = @"
+Install-WindowsFeature -Name FileAndStorage-Services,File-Services,FS-FileServer,RSAT,RSAT-Role-Tools,RSAT-Hyper-V-Tools
+"@
+        Set-Content -Path $wacDeployScriptFile -Value $wacDeployScriptFileContent
+        return $wacDeployScriptFile
+    }
     if($Role -eq "ScaleOutFileServer")
     {
         $SOFSDeployScriptFile = "$($Labconfig.Root)\SOFS_Deploy.ps1"
@@ -773,13 +786,19 @@ foreach ($dc in $DCMetadata)
 }
 #endregion
 
+$wacMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "WindowsAdminCenter"}
+foreach ($wac in $wacMetadata)
+{
+    BuildVM -VMMetadata $wac
+}
+
 #region Deploy Scale-Out File Server
 WriteInfo "Starting Deploy Scale-Out File Server"
 WriteInfo "`tGetting Scale-Out File Servers information from Variable"
-$SOFSMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "ScaleOutFileServer"}
-foreach($SOFS in $SOFSMetadata)
-{
-    BuildVM -VMMetadata $SOFS
-}
+#$SOFSMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "ScaleOutFileServer"}
+#foreach($SOFS in $SOFSMetadata)
+#{
+#    BuildVM -VMMetadata $SOFS
+#}
 #endregion
 
