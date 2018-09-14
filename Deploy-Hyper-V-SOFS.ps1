@@ -549,7 +549,7 @@ function BuildVM
             $vm = New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName $($VMMetadata.NIC0.switch) -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
             WriteInfo "The Deployment of Virtual Machine $vmName Successed"
             $vm | Set-VM -ProcessorCount $vmCpuCores -CheckpointType Disabled
-            $vm | Get-VMNetworkAdapter |Set-VMNetworkAdapter -Name $($VMMetadata.NIC0.switch)
+            $vm | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName $($VMMetadata.NIC0.switch)
 
             # Add 2rd NIC as cluster network if required
             if ($VMMetadata.NIC1 -ne $null)
@@ -575,7 +575,8 @@ function BuildVM
     catch
     {
         WriteError "The deployment of Virtual Machine $vmName failed."
-        WriteError $_.Exception.Message
+        Stop-Transcript
+        WriteErrorAndExit $_.Exception.Message
     }
     WriteInfo "Script Finished at $(Get-Date) and took $(((Get-date) - $dtVMDeployStart).TotalSeconds) Seconds"
     Stop-Transcript
@@ -1033,6 +1034,7 @@ foreach ($dc in $DCMetadata)
 {
     BuildVM -VMMetadata $dc
 }
+
 sleep -Seconds 500
 #endregion
 
