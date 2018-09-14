@@ -14,7 +14,7 @@ $LabConfig = @{Root = "$home\SCLAB";
                 VHDStore = "D:;F:";
                 ISOStore = "D:;E:\Software\ISO;D:\Databank\Software\ISO";
                 Win2K6VL = "en_windows_server_2016_vl_x64_dvd_11636701.iso";
-                VMHome = "F:\VMs";
+                VMHome = "D:\VMs;F:\VMs";
                 VMs = @()}
 
 #Add DC's info
@@ -342,6 +342,48 @@ function GetVHDTemplate{
         }
     }
 }
+
+function GetVMHome
+{
+    foreach($p in $($LabConfig.VMHome).Split(";"))
+    {
+        if(!(Test-Path $p))
+        {
+            $v = New-Item -ItemType Directory -Path $p -ErrorAction SilentlyContinue
+            $freeSpace = (Get-Item $p -ErrorAction SilentlyContinue).PSDrive.Free/1GB
+            if ($v -ne $null)
+            {
+                if ($freeSpace -gt 100)
+                {
+                    return $v.FullName
+                    exit
+                }
+                else
+                {
+                    WriteError "VMHome error: Free Disk Space is insufficient in $p, try next part...!"
+                }                
+            }
+            else
+            {
+                WriteError "The given path $p inaccessible, try next part..."
+            }
+        }
+        else
+        {
+            $v = Get-Item $p -ErrorAction SilentlyContinue
+            $freeSpace = $v.PSDrive.Free/1GB
+            if ($freeSpace -gt 100)
+            {
+                return $v.FullName
+                exit
+            }
+            else
+            {
+                WriteError "VMHome error: Free Disk Space is insufficient in $p, try next part...!"
+            }     
+        }
+    }    
+}
 function BuildVM
 {
     param(
@@ -360,7 +402,13 @@ function BuildVM
     $vmParentVHD = $VMMetadata.ParentVHD
     #$VMParentVHDFullName = "$($LabConfig.VHDStore)\ParentDisks\$vmParentVHD"
     $vmParentVHDFullName = GetVHDTemplate -Path $($LabConfig.VHDStore) -TemplateName $vmParentVHD
-    $vmHome = "$($LabConfig.VMHome)\$vmName"
+    #$vmHome = "$($LabConfig.VMHome)\$vmName"
+    $vmHome = GetVMHome + "\" +$vmName
+    if(!(Test-Path $vmHome))
+    {
+        WriteErrorAndExit "The VMHome folder $vmHome doesn't not exist, exit!"
+
+    }
     $vmCpuCores = $VMMetadata.CpuCores
     $vmMemoryStartupBytes = $VMMetadata.MemoryStartupBytes
     $vmOSVhd = "$vmName.vhdx"
@@ -583,159 +631,6 @@ function BuildVM
     
 }
 
-#endregion
-
-#region Prerequest check
-Start-Transcript -Path "$($LabConfig.Root)\Prereq.log"
-$startDateTime = Get-Date
-WriteInfo "Script Started at $startDateTime"
-
-#checking for compatible OS
-WriteInfoHighlighted "Checking if OS is Windows10 1511 / Server 2016 or newer"
-$BuildNumber = Get-WindowsBuildNumber
-if($BuildNumber -ge 10586)
-{
-    WriteSuccess "OS is Windows10 1511 / Server 2016 or newer"
-}
-else {
-    WriteErrorAndExit "Windows Version $BuildNumber detected. Version 10586 and newer is needed. Exiting"
-}
-
-#checking folder structure
-"ParentDisks",`
-"Tools\DSC",`
-"Tools\ToolsVHD\DiskSpd",`
-"Tools\ToolsVHD\SCVMM\ADK",`
-"Tools\ToolsVHD\SCVMM\SQL", `
-"Tools\ToolsVHD\SCVMM\SCVMM\UpdateRollup",`
-"Tools\ToolsVHD\VMFleet" | ForEach-Object{
-    if(!(Test-Path "$($LabConfig.Root)\$_")) {New-Item -type Directory -Path "$($LabConfig.Root)\$_"}}
-
-"Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt", `
-"Tools\ToolsVHD\SCVMM\SQL\copy_SQL2016_with_setup.exe_here.txt", `
-"Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt", `
-"Tools\ToolsVHD\SCVMM\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object{
-    if(!(Test-Path "$($LabConfig.Root)\$_")) {New-Item -type File -Path "$($LabConfig.Root)\$_";WriteInfo $_.FullName.Length}} 
-
-
-    
-#Download conver-windowsimage into Tools and ToolsVHD
-WriteInfoHighlighted "Testing convert-windowsimage presence in \Tools"
-if(Test-Path "$($LabConfig.Root)\Tools\convert-windowsimage.ps1")
-{
-    WriteSuccess "`t convert-windowsimage.ps1 already exists in \Tools, skipping and download"    
-}
-else {
-    WriteInfo "`t Downloading convert-windowsimage"
-    try {
-        Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 `
-        -OutFile "$($LabConfig.Root)\Tools\convert-windowsimage.ps1"
-    }
-    catch {
-        WriteError "`t Failed to download convert-windowsimage.ps1"
-    }
-}
-WriteInfoHighlighted "Testing convert-windowsimage presence in \Tools\ToolsVHD"
-    if (!(Test-Path "$($LabConfig.Root)\Tools\ToolsVHD\convert-windowsimage.ps1"))
-    {
-        Copy-Item "$($LabConfig.Root)\Tools\convert-windowsimage.ps1" "$($LabConfig.Root)\Tools\ToolsVHD\convert-windowsimage.ps1"
-        WriteSuccess "`t convert-windowsimage.ps1 copied into \Tools\ToolsVHD"
-    }
-    else {
-        WriteSuccess "`t convert-windowsimage.ps1 already exists in \Tools\ToolsVHD"
-    }
-
-# Check Hyper-V Feature on HOST
-WriteInfoHighlighted "Checking if Hyper-V is installed"
-if ((Get-WmiObject -class Win32_OperatingSystem).Caption -contains "Server")
-{
-    WriteInfo "`tThis machine is running on Server based Windows edition"
-    if ((Get-WindowsFeature Microsoft-Hyper-V,Microsoft-Hyper-V-Management-PowerShell).State -eq "Enabled")
-    {
-        WriteSuccess "`tHyper-V and Management Tools is installed"
-    }
-    else {
-        WriteError "`tHyper-V isn't installed, Installing Hyper-V ..."
-        try {
-            Install-WindowsFeature Microsoft-Hyper-V,Microsoft-Hyper-V-Management-PowerShell
-        }
-        catch {
-            WriteError "`tInstall Hyper-V failed"
-        }        
-    }
-}
-else {
-    WriteInfo "`tThis machine is running on Clinet based Windows edition"
-    if((Get-WindowsOptionalFeature -online -featurename Microsoft-Hyper-V).state -eq "Enabled")
-    {
-        WriteSuccess "`tHyper-V and Management Tools is insalled"
-    }
-    else
-    {
-        WriteError "`tHyper-V isn't installed, Installing Hyper-V ..."
-        try
-        {
-            Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
-        }
-        catch
-        {
-            WriteError "`tInstall Hyper-V failed"
-        }        
-    }    
-}
-
-#Check vSwitch on Host
-WriteInfoHighlighted "Getting vSwitch ..."
-$vms = Get-VMSwitch
-$extSwitch = $vms | Where-Object {($_.SwitchType -eq "External") -and ($_.Name -eq "External")}
-$labSwitch = $vms | Where-Object {($_.SwitchType -eq "Internal") -and ($_.Name -eq "Lab")}
-$cluSwitch = $vms | Where-Object {($_.SwitchType -eq "Internal") -and ($_.Name -eq "Cluster")}
-
-if ($extSwitch)
-{
-    WriteInfo "`t Listing External vSwitch which for VM external access"
-    $extSwitch | Format-Table -AutoSize
-}
-else {
-    
-    WriteInfo "`t Getting Physical NetAdapter"
-    $pNic = Get-NetAdapter -Physical | Where-Object {$_.Status -eq "Up"} | Select-Object -First 1
-    WriteInfo "`t Creating virtual Switch - external"
-    $extSwitch = New-VMSwitch -Name "External" -NetAdapterName $pNIC.Name -AllowManagementOS $true
-    $extSwitch | Format-Table -AutoSize
-}
-
-if($labSwitch)
-{
-    WriteInfo "`t Listing Internal vSwtich for Lab"
-    $labSwitch | Format-Table -AutoSize
-}
-else
-{
-    WriteInfo "`t Creating vSwitch for Lab network"
-    $labSwitch = New-VMSwitch -Name "Lab" -SwitchType Internal
-    $labSwitch | Format-Table -AutoSize
-}
-
-if ($cluSwitch)
-{
-    WriteInfo "`t Listing Internal vSwitch for Cluster"
-    $cluSwitch | Format-Table -AutoSize
-}
-else
-{
-    WriteInfo "`t Creating vSwitch for Cluster network"
-    $cluSwitch = New-VMSwitch -Name "Cluster" -SwitchType Internal
-    $cluSwitch | Format-Table -AutoSize
-}
-
-#Finishing
-WriteInfo "Script Finished at $(Get-Date) and took $(((Get-date) - $startDatetime).TotalSeconds) Seconds"
-Stop-Transcript
-#endregion
-
-#region Unattend part
-
 function CreateUnattendFile
 {
     param(
@@ -809,10 +704,11 @@ function CreateUnattendFile
         <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
             <AutoLogon>
                 <Password>
-                    <Value>UABAAHMAcwB3AG8AcgBkAFAAYQBzAHMAdwBvAHIAZAA=</Value>
+                    <Value>UABAAHMAcwB3AG8AcgBkADEAIQBQAGEAcwBzAHcAbwByAGQA</Value>
                     <PlainText>false</PlainText>
                 </Password>
                 <Enabled>true</Enabled>
+                <LogonCount>2</LogonCount>
                 <Username>administrator</Username>
             </AutoLogon>
             <ComputerName>%ComputerName%</ComputerName>
@@ -825,7 +721,7 @@ function CreateUnattendFile
                     <Value>UABAAHMAcwB3AG8AcgBkADEAIQBBAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAFAAYQBzAHMAdwBvAHIAZAA=</Value>
                     <PlainText>false</PlainText>
                 </AdministratorPassword>
-            </UserAccounts>
+            </UserAccounts>            
             <OOBE>
                 <HideEULAPage>true</HideEULAPage>
                 <HideLocalAccountScreen>true</HideLocalAccountScreen>
@@ -1008,7 +904,7 @@ New-NetIPAddress -InterfaceIndex `$nics[0].ifIndex -IPAddress $($VMMetadata.Nic0
     {
         $SetIPScriptFileContent += @"
 
-Set-NetIPInterface -InterfaceIndex `$nics[1].ifIndex -IPAddress $($VMMetadata.NIC1.IPAddr) -DefaultGateway $($VMMetadata.NIC1.Gateway) -PrefixLength $($VMMetadata.NIC1.PrefixLength)
+New-NetIPAddress -InterfaceIndex `$nics[1].ifIndex -IPAddress $($VMMetadata.NIC1.IPAddr) -DefaultGateway $($VMMetadata.NIC1.Gateway) -PrefixLength $($VMMetadata.NIC1.PrefixLength)
 `$nics[1] | Rename-NetAdapter -NewName $($VMMetadata.Nic1.Switch) -ErrorAction SilentlyContinue      
 "@
     }
@@ -1023,7 +919,155 @@ Set-NetIPInterface -InterfaceIndex `$nics[1].ifIndex -IPAddress $($VMMetadata.NI
     Set-Content -Path $SetIPScriptFile -Value $SetIPScriptFileContent
     return $SetIPScriptFile
 }
+#endregion
 
+#region Prerequest check
+Start-Transcript -Path "$($LabConfig.Root)\Prereq.log"
+$startDateTime = Get-Date
+WriteInfo "Script Started at $startDateTime"
+
+#checking for compatible OS
+WriteInfoHighlighted "Checking if OS is Windows10 1511 / Server 2016 or newer"
+$BuildNumber = Get-WindowsBuildNumber
+if($BuildNumber -ge 10586)
+{
+    WriteSuccess "OS is Windows10 1511 / Server 2016 or newer"
+}
+else {
+    WriteErrorAndExit "Windows Version $BuildNumber detected. Version 10586 and newer is needed. Exiting"
+}
+
+#checking folder structure
+"ParentDisks",`
+"Tools\DSC",`
+"Tools\ToolsVHD\DiskSpd",`
+"Tools\ToolsVHD\SCVMM\ADK",`
+"Tools\ToolsVHD\SCVMM\SQL", `
+"Tools\ToolsVHD\SCVMM\SCVMM\UpdateRollup",`
+"Tools\ToolsVHD\VMFleet" | ForEach-Object{
+    if(!(Test-Path "$($LabConfig.Root)\$_")) {New-Item -type Directory -Path "$($LabConfig.Root)\$_"}}
+
+"Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt", `
+"Tools\ToolsVHD\SCVMM\SQL\copy_SQL2016_with_setup.exe_here.txt", `
+"Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt", `
+"Tools\ToolsVHD\SCVMM\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object{
+    if(!(Test-Path "$($LabConfig.Root)\$_")) {New-Item -type File -Path "$($LabConfig.Root)\$_";WriteInfo $_.FullName.Length}} 
+
+
+    
+#Download conver-windowsimage into Tools and ToolsVHD
+WriteInfoHighlighted "Testing convert-windowsimage presence in \Tools"
+if(Test-Path "$($LabConfig.Root)\Tools\convert-windowsimage.ps1")
+{
+    WriteSuccess "`t convert-windowsimage.ps1 already exists in \Tools, skipping and download"    
+}
+else {
+    WriteInfo "`t Downloading convert-windowsimage"
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 `
+        -OutFile "$($LabConfig.Root)\Tools\convert-windowsimage.ps1"
+    }
+    catch {
+        WriteError "`t Failed to download convert-windowsimage.ps1"
+    }
+}
+WriteInfoHighlighted "Testing convert-windowsimage presence in \Tools\ToolsVHD"
+    if (!(Test-Path "$($LabConfig.Root)\Tools\ToolsVHD\convert-windowsimage.ps1"))
+    {
+        Copy-Item "$($LabConfig.Root)\Tools\convert-windowsimage.ps1" "$($LabConfig.Root)\Tools\ToolsVHD\convert-windowsimage.ps1"
+        WriteSuccess "`t convert-windowsimage.ps1 copied into \Tools\ToolsVHD"
+    }
+    else {
+        WriteSuccess "`t convert-windowsimage.ps1 already exists in \Tools\ToolsVHD"
+    }
+
+# Check Hyper-V Feature on HOST
+WriteInfoHighlighted "Checking if Hyper-V is installed"
+if ((Get-WmiObject -class Win32_OperatingSystem).Caption -contains "Server")
+{
+    WriteInfo "`tThis machine is running on Server based Windows edition"
+    if ((Get-WindowsFeature Microsoft-Hyper-V,Microsoft-Hyper-V-Management-PowerShell).State -eq "Enabled")
+    {
+        WriteSuccess "`tHyper-V and Management Tools is installed"
+    }
+    else {
+        WriteError "`tHyper-V isn't installed, Installing Hyper-V ..."
+        try {
+            Install-WindowsFeature Microsoft-Hyper-V,Microsoft-Hyper-V-Management-PowerShell
+        }
+        catch {
+            WriteError "`tInstall Hyper-V failed"
+        }        
+    }
+}
+else {
+    WriteInfo "`tThis machine is running on Clinet based Windows edition"
+    if((Get-WindowsOptionalFeature -online -featurename Microsoft-Hyper-V).state -eq "Enabled")
+    {
+        WriteSuccess "`tHyper-V and Management Tools is insalled"
+    }
+    else
+    {
+        WriteError "`tHyper-V isn't installed, Installing Hyper-V ..."
+        try
+        {
+            Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+        }
+        catch
+        {
+            WriteError "`tInstall Hyper-V failed"
+        }        
+    }    
+}
+
+#Check vSwitch on Host
+WriteInfoHighlighted "Getting vSwitch ..."
+$vms = Get-VMSwitch
+$extSwitch = $vms | Where-Object {($_.SwitchType -eq "External") -and ($_.Name -eq "External")}
+$labSwitch = $vms | Where-Object {($_.SwitchType -eq "Internal") -and ($_.Name -eq "Lab")}
+$cluSwitch = $vms | Where-Object {($_.SwitchType -eq "Internal") -and ($_.Name -eq "Cluster")}
+
+if ($extSwitch)
+{
+    WriteInfo "`t Listing External vSwitch which for VM external access"
+    $extSwitch | Format-Table -AutoSize
+}
+else {
+    
+    WriteInfo "`t Getting Physical NetAdapter"
+    $pNic = Get-NetAdapter -Physical | Where-Object {$_.Status -eq "Up"} | Select-Object -First 1
+    WriteInfo "`t Creating virtual Switch - external"
+    $extSwitch = New-VMSwitch -Name "External" -NetAdapterName $pNIC.Name -AllowManagementOS $true
+    $extSwitch | Format-Table -AutoSize
+}
+
+if($labSwitch)
+{
+    WriteInfo "`t Listing Internal vSwtich for Lab"
+    $labSwitch | Format-Table -AutoSize
+}
+else
+{
+    WriteInfo "`t Creating vSwitch for Lab network"
+    $labSwitch = New-VMSwitch -Name "Lab" -SwitchType Internal
+    $labSwitch | Format-Table -AutoSize
+}
+
+if ($cluSwitch)
+{
+    WriteInfo "`t Listing Internal vSwitch for Cluster"
+    $cluSwitch | Format-Table -AutoSize
+}
+else
+{
+    WriteInfo "`t Creating vSwitch for Cluster network"
+    $cluSwitch = New-VMSwitch -Name "Cluster" -SwitchType Internal
+    $cluSwitch | Format-Table -AutoSize
+}
+
+#Finishing
+WriteInfo "Script Finished at $(Get-Date) and took $(((Get-date) - $startDatetime).TotalSeconds) Seconds"
+Stop-Transcript
 #endregion
 
 #region Deploy Domain Controller
@@ -1034,8 +1078,8 @@ foreach ($dc in $DCMetadata)
 {
     BuildVM -VMMetadata $dc
 }
-
-sleep -Seconds 500
+WriteInfo "Slepping 300 seconds wait Domain Controller getting online!"
+sleep -Seconds 300
 #endregion
 
 $wacMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "WindowsAdminCenter"}
