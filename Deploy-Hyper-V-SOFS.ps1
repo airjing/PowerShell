@@ -1,5 +1,5 @@
 $LabConfig = @{Root = "$home\SCLAB"; 
-                DomainAdmin = 'LabAdmin';
+                DomainAdmin = 'Administrator';
                 AdminPassword = 'P@ssword1!';
                 Prefix = 'SC-';
                 SwitchName = 'Lab';
@@ -403,12 +403,8 @@ function BuildVM
     #$VMParentVHDFullName = "$($LabConfig.VHDStore)\ParentDisks\$vmParentVHD"
     $vmParentVHDFullName = GetVHDTemplate -Path $($LabConfig.VHDStore) -TemplateName $vmParentVHD
     #$vmHome = "$($LabConfig.VMHome)\$vmName"
-    $vmHome = GetVMHome + "\" +$vmName
-    if(!(Test-Path $vmHome))
-    {
-        WriteErrorAndExit "The VMHome folder $vmHome doesn't not exist, exit!"
-
-    }
+    $vmHome = GetVMHome
+    $vmHome += "\" + $vmName
     $vmCpuCores = $VMMetadata.CpuCores
     $vmMemoryStartupBytes = $VMMetadata.MemoryStartupBytes
     $vmOSVhd = "$vmName.vhdx"
