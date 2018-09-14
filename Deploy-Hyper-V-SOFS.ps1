@@ -1,20 +1,63 @@
-$LabConfig = @{Root = "$home\SCLAB"; DomainAdmin = 'LabAdmin';AdminPassword = 'P@ssword1!';Prefix = 'SC-'; `
-                SwitchName = 'Lab';DCEdition = '4';AdditionalNetworksConfig=@(); DomainNetbiosName = "SCLABDemo";`
-                DomainName = "SCLABDemo.INFRA.CORP"; ServerDCGUIVHD = "Win2016_DC_G2.vhdx";`
-                ServerDCCoreVHD = "Win2016_DC_Core_G2.vhdx"; TimeZone = "China Standard Time"; VHDStore = "F:";`
-                ISOStore = "E:\Software\ISO;D:\Databank\Software\ISO"; Win2K6VL = "en_windows_server_2016_vl_x64_dvd_11636701.iso";`
+$LabConfig = @{Root = "$home\SCLAB"; 
+                DomainAdmin = 'LabAdmin';
+                AdminPassword = 'P@ssword1!';
+                Prefix = 'SC-';
+                SwitchName = 'Lab';
+                DCEdition = '4';
+                DomainNetbiosName = "SCLABDemo";
+                DomainName = "SCLABDemo.INFRA.CORP";
+                VHDTemplates = @{
+                    ServerDCGUIVHD = "Win2016_DC_G2.vhdx";
+                    ServerDCCoreVHD = "Win2016_DC_Core_G2.vhdx";
+                    }                
+                TimeZone = "China Standard Time";
+                VHDStore = "D:;F:";
+                ISOStore = "D:;E:\Software\ISO;D:\Databank\Software\ISO";
+                Win2K6VL = "en_windows_server_2016_vl_x64_dvd_11636701.iso";
                 VMHome = "F:\VMs";
                 VMs = @()}
 
 #Add DC's info
-$LabConfig.VMs += @{VMName = "SCLABDC01"; Role="DomainController"; ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 100GB; MemoryStartupBytes = 2GB; CpuCores = 4;}
-$LabConfig.VMs += @{VMName = "SCWAC"; Role = "WindowsAdminCenter"; ParentVHD = "Win2016_DC_G2.vhdx"; OSVHDSize = 100GB; MemoryStartupBytes = 4GB; CpuCores =4; Nic0Switch = "Lab"; Nic1Switch = "Cluster"}
+$LabConfig.VMs += @{
+    VMName = "SCLABDC01"; 
+    Role="DomainController"; 
+    ParentVHD = "Win2016_DC_G2.vhdx"; 
+    OSVHDSize = 100GB; 
+    MemoryStartupBytes = 2GB; 
+    CpuCores = 4;
+    NIC0 =@{
+        Switch = "External";
+        DHCP = "Enabled"}
+    NIC1 =@{
+        Switch = "Lab"; 
+        IPAddr = "192.168.1.11"; 
+        PrefixLength = "24"; 
+        GateWay = "192.168.1.1"; 
+        DNS = "192.168.1.11"}    
+    }
+$LabConfig.VMs += @{
+    VMName = "SCWAC"; 
+    Role = "WindowsAdminCenter"; 
+    ParentVHD = "Win2016_DC_G2.vhdx"; 
+    OSVHDSize = 100GB; 
+    MemoryStartupBytes = 4GB; 
+    CpuCores =4; 
+    NIC0 = @{
+        Switch = "Lab"; 
+        IPAddr = "192.168.1.12"; 
+        PrefixLength = "24"; 
+        GateWay = "192.168.1.1"; 
+        DNS = "192.168.1.11"}
+    NIC1 = @{
+        Switch = "External";
+        DHCP = "Enabled"}
+    }
 1..4 | ForEach-Object {$VMNames="SOFS0"; $LabConfig.VMs += @{ VMName = "$VMNames$_" ; Role = "ScaleOutFileServer" ;`
                         ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB; MemoryStartupBytes = 2GB; CpuCores = 4; SSDNumber = 6; SSDSize = 800GB;`
-                        HDDNumber = 12; HDDSize = 4TB}}
-1..4 | ForEach-Object {$VMNames="SCHOST0"; $LabConfig.VMs += @{ VMName = "$VMNames$_"; Role = "Hyper-VHost";`
+                        HDDNumber = 12; HDDSize = 4TB; NIC0 = @{Switch = "Lab"; DHCP = "Enabled"};NIC1 = @{Switch = "Cluster"; DHCP = "Enabled"}}}
+1..4 | ForEach-Object {$VMNames="SCHOST0"; $LabConfig.VMs += @{ VMName = "$VMNames$_"; Role = "Hyper-V-Host";`
                         ParentVHD = "Win2016_DC_Core_G2.vhdx"; OSVHDSize = 50GB; MemoryStartupBytes = 2GB; CpuCores = 4; SSDNumber =0; SSDSize = 800GB;`
-                        HDDNumber = 0; HDDSize = 4TB}}
+                        HDDNumber = 0; HDDSize = 4TB; NIC0 = @{Switch = "Lab"; DHCP = "Enabled"};NIC1 = @{Switch = "Cluster"; DHCP = "Enabled"}}}
 
 # Verify Running as Admin rights
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).isInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
@@ -110,11 +153,195 @@ function Prepare-PSRemoting {
     }   
     
     $curHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
-    WriteInfo "The Current Trusted Hosts is $curHosts"
-     
-    
+    WriteInfo "The Current Trusted Hosts is $curHosts"    
 }
 
+
+function Convert-ISO2VHD{
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]
+        $ISOFullName,
+        [Parameter(Mandatory=$true)]
+        [int]
+        $ImageIndex,
+        [Parameter(Mandatory=$true)]
+        [string]
+        $VHDPath,
+        [Parameter(Mandatory=$true)]
+        [string]
+        $VHDName,
+        [Parameter(Mandatory=$true)]
+        [int64]
+        $VHDSize
+    )
+    if(Test-Path $ISOFullName)
+    {
+        WriteInfoHighlighted "Find ISO File $ISOFullName"
+        WriteInfoHighlighted "Converting ISO Image to VHD Disks"
+        $iso = Mount-DiskImage $ISOFullName -PassThru
+        $isoDriverLetter = (Get-Volume -DiskImage $iso).DriveLetter
+    }
+    else {
+        WriteError "The ISO File $ISOFullName doesn't exists, please dobule check"
+    }
+    WriteInfoHighlighted "Loading convert-WindowsImage.ps1 ..."
+    . "$($LabConfig.Root)\tools\convert-windowsimage.ps1"
+    
+    if (!(Test-Path "$($isoDriverLetter):\sources\install.wim"))
+    {
+        WriteError "Install.wim no found in $($isoDriverLetter):\"
+        WriteInfoHighlighted "Dismounting ISO file $ISOFullName"
+        if ($iso -ne $null)
+        {
+            $iso | Dismount-DiskImage
+        }
+    }
+    else {
+        try {
+            WriteInfo "Found install.wim file in $($isoDriverLetter):\"
+            WriteInfo "Getting Image information from $($isoDriverLetter):\sources\install.wim"
+            $images= Get-WindowsImage -ImagePath "$($isoDriverLetter):\sources\install.wim"
+            foreach($image in $images)
+            {
+                WriteInfo ($image.ImageIndex.toString() + " - " + $image.ImageName)
+            }            
+            Convert-WindowsImage -SourcePath "$($isoDriverLetter):\sources\install.wim" -Edition $ImageIndex -VHDPath  "$VHDPath\$VHDName" `
+            -SizeBytes $VHDSize -VHDFormat VHDX -Disklayout UEFI            
+        }
+        catch {
+            WriteError $_.Exception.Message
+        }
+        Finally{
+            $iso | Dismount-DiskImage
+        }        
+    }
+}
+function GetFirstFileItem {
+    param (
+        # Parameter help description
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Path,
+        [Parameter(Mandatory = $true)]
+        [string]
+        $FileName
+    )
+    foreach ($p in $Path.Split(";"))
+    {
+        if(Test-Path $p)
+        {
+            $f = Get-Item $p\$FileName -ErrorAction SilentlyContinue
+            if($f -ne $null)
+            {
+                return $f
+            }
+            else
+            {
+                WriteError "Cannot Find file $FileName in $p"    
+            }            
+        }
+        else
+        {
+            WriteError "The given path $Path doesn't exists!"    
+        }
+    }    
+}
+function CreateVHDTemplate{
+   param(
+       # Parameter help description
+       [Parameter(Mandatory = $true)]
+       [string]
+       $Path,
+       # Parameter help description
+       [Parameter(Mandatory = $true)]
+       [string]
+       $TemplateName,
+       # Parameter help description
+       [Parameter(Mandatory = $false)]
+       [string]
+       $VHDSize
+   ) 
+   if(Test-Path $Path)
+   {
+       # 1 : Server 2016 Standard
+       # 2 : Server 2016 Standard GUI
+       # 3 : Server 2016 DataCenter
+       # 4 : Server 2016 DataCenter GUI       
+       WriteInfo "Creating VHD Template File $TemplateName in $Path"
+       #$Win2K6ISO = Get-ChildItem -Path $($LabConfig.ISOStore) -Recurse "en_windows_server_2016_vl_x64_dvd_11636701.iso"
+       #$Win2K6ISO = Get-FileinMultiPath $($LabConfig.ISOStore) $($LabConfig.Win2K6VL)
+       #$Win2K6ISO = Get-ChildItem -Path $p -Recurse $($LabConfig.Win2K6VL)
+       $Win2K6ISO = GetFirstFileItem -Path $($LabConfig.ISOStore) -FileName $($LabConfig.Win2K6VL)
+       if (Test-Path $Win2K6ISO)
+       {
+           #Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex 3 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_Core_G2.vhdx" -VHDSize 30GB
+           #Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex 4 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_G2.vhdx" -VHDSize 60GB
+           switch ($TemplateName) {
+                "Win2016_STD_Core_G2.vhdx" { $imageIndex = 1 }
+                "Win2016_STD_G2.vhdx" { $imageIndex = 2 }
+                "Win2016_DC_Core_G2.vhdx" { $imageIndex = 3 }
+                "Win2016_DC_G2.vhdx.vhdx" { $imageIndex = 4 }
+               Default { $imageIndex = 4}
+           }
+           if ($VHDSize -eq $null)
+           {
+               $VHDSize = "60GB"
+           }
+
+           Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex $imageIndex -VHDPath $Path -VHDName $TemplateName -VHDSize $VHDSize
+           exit
+       }
+       else
+       {
+           WriteErrorAndExit "Cannot find $Win2k6ISO in $($LabConfig.ISOStore)"
+       }         
+   }
+   else
+   {
+       WriteErrorAndExit "The given path $Path doesn't exists!"
+         
+   }
+}
+
+function GetVHDTemplate{
+    param(
+        # Parameter help description
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Path,
+        # Parameter help description
+        [Parameter(Mandatory = $true)]
+        [string]
+        $TemplateName
+    )
+    foreach ($p in $Path.Split(";"))
+    {
+        $freeSpace = (Get-Item $p).PSDrive.Free/1GB
+        if ($freeSpace -gt 50)
+        {
+            if (!(Test-Path "$p\ParentDisks"))
+            {
+                New-Item -ItemType Directory -Path "$p\ParentDisks"
+            }
+            $t = GetFirstFileItem -Path "$p\ParentDisks" -FileName $TemplateName
+            if($t -ne $null)
+            {
+                WriteInfo "Find Template File $TemplateName";
+                return $t
+            }
+            else
+            {
+                WriteError "Cannot find $TemplateName in given path $p"                
+                return CreateVHDTemplate -Path "$p\ParentDisks" -TemplateName $TemplateName -VHDSize $VMMetadata.OSVHDSize
+            }
+        }
+        else
+        {
+            WriteError "Free Disk Space is insufficient in $p, try next path...!"  
+        }
+    }
+}
 function BuildVM
 {
     param(
@@ -123,11 +350,16 @@ function BuildVM
         [hashtable]
         $VMMetadata
     )
+    Start-Transcript -Path "$($LabConfig.Root)\$($VMMetadata.VMName)_Deployment.log"
+    $dtVMDeployStart = Get-Date
+    WriteInfo "The virtual machine deployment started at - $dtVMDeployStart"
+    
     # extract variable from $VMMetadata hashtable
     $vmName = $VMMetadata.VMName
     $vmServerRole = $VMMetadata.Role
     $vmParentVHD = $VMMetadata.ParentVHD
-    $VMParentVHDFullName = "$($LabConfig.VHDStore)\ParentDisks\$vmParentVHD"
+    #$VMParentVHDFullName = "$($LabConfig.VHDStore)\ParentDisks\$vmParentVHD"
+    $vmParentVHDFullName = GetVHDTemplate -Path $($LabConfig.VHDStore) -TemplateName $vmParentVHD
     $vmHome = "$($LabConfig.VMHome)\$vmName"
     $vmCpuCores = $VMMetadata.CpuCores
     $vmMemoryStartupBytes = $VMMetadata.MemoryStartupBytes
@@ -138,9 +370,10 @@ function BuildVM
     $SSD_Count = $VMMetadata.SSDNumber
     $SSD_Size = $VMMetadata.SSDSize
     $HDD_Count = $VMMetadata.HDDNumber
-    $HDD_Size = $VMMetadata.HDDSize
+    $HDD_Size = $VMMetadata.HDDSize  
     $vmUaf = CreateUnattendFile -ComputerName $vmName -AdminPassword $($LabConfig.AdminPassword) -TimeZone $TimeZone -Role $vmServerRole -JoinDomain $true
     $vmFirstLogonScriptFile = CreateFirstLogonScriptFile -Role $vmServerRole
+    $vmSetIPScriptFile = CreateSetIPScriptFile -VMMetadata $VMMetadata
 
     # functions within BuildVM
     function CreateVHD
@@ -175,8 +408,8 @@ function BuildVM
             $UnattendFile,
             # Parameter help description
             [Parameter(Mandatory = $false)]
-            [string]
-            $ScriptFile,
+            [System.Array]
+            $ScriptFiles,
             # Parameter help description
             [Parameter(Mandatory = $true)]
             [string]
@@ -189,13 +422,13 @@ function BuildVM
             $v = Mount-VHD -Path $VHDFile -Passthru -ErrorAction SilentlyContinue | Get-Disk | Get-Partition | Get-Volume | Where-Object {$_.FileSystemType -eq "NTFS"}
             $dst = "$($v.DriveLetter):\"
             Copy-Item $UnattendFile $dst
-            WriteSuccess "Copied unattend file $UnattendFile to $VHDFile"
-            if (Test-Path $ScriptFile)
+            WriteSuccess "Copied unattend file $UnattendFile to $VHDFile"            
+            foreach ($f in $ScriptFiles)
             {
-                WriteInfo "Injecting $ScriptFile to $VHDFile"
-                Copy-Item $ScriptFile $dst
-                WriteSuccess "Injected $ScriptFile to $VHDFile"
-            }
+                WriteInfo "Injecting $f to $VHDFile"
+                Copy-Item $f.FullName $dst
+                WriteSuccess "Injected $f to $VHDFile"
+            }            
         }
         Catch
         {
@@ -304,7 +537,8 @@ function BuildVM
     }
     
     # Inject unattend and script files into vmOSVhd
-    InjectVHD -UnattendFile $vmUaf -ScriptFile $vmFirstLogonScriptFile -VHDFile $vmOSVhdFullName
+    $vmScriptFiles = Get-ChildItem $($LabConfig.Root) *.ps1
+    InjectVHD -UnattendFile $vmUaf -ScriptFiles $vmScriptFiles -VHDFile $vmOSVhdFullName
 
     # code block for VM create
     try
@@ -312,17 +546,26 @@ function BuildVM
         $vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
         if ($vm -eq $null)
         {
-            New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName "Lab" -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
+            $vm = New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName $($VMMetadata.NIC0.switch) -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
             WriteInfo "The Deployment of Virtual Machine $vmName Successed"
-            Set-VM -Name $vmName -ProcessorCount $vmCpuCores -CheckpointType Disabled
+            $vm | Set-VM -ProcessorCount $vmCpuCores -CheckpointType Disabled
+            $vm | Get-VMNetworkAdapter |Set-VMNetworkAdapter -Name $($VMMetadata.NIC0.switch)
 
-            # Add 2rd NIC as cluster network
-            Add-VMNetworkAdapter -VMName $vmName -Name "Cluster" -SwitchName "Cluster"
+            # Add 2rd NIC as cluster network if required
+            if ($VMMetadata.NIC1 -ne $null)
+            {
+                $vm | Add-VMNetworkAdapter -Name $($VMMetadata.Nic1.switch) -SwitchName $($VMMetadata.Nic1.switch)
+            }
+            
 
             WriteInfo "Attaching $vmOSVhdFullName to Virtual Machine $vmName"
             Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vmOSVhdFullName -ErrorAction SilentlyContinue
 
             WriteInfo "Attached $vmOSVhdFullName to Virtual Machine $vmName"
+
+            # Create VHDs for SSD and HDDs then attach to VM
+            Attach-VhdToVM -VMMetadata $VMMetadata
+            Start-VM -Name $vmName
         }
         else
         {
@@ -334,9 +577,9 @@ function BuildVM
         WriteError "The deployment of Virtual Machine $vmName failed."
         WriteError $_.Exception.Message
     }
-    # Create VHDs for SSD and HDDs then attach to VM
-    Attach-VhdToVM -VMMetadata $VMMetadata
-    Start-VM -Name $vmName
+    WriteInfo "Script Finished at $(Get-Date) and took $(((Get-date) - $dtVMDeployStart).TotalSeconds) Seconds"
+    Stop-Transcript
+    
 }
 
 #endregion
@@ -373,10 +616,8 @@ else {
 "Tools\ToolsVHD\SCVMM\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object{
     if(!(Test-Path "$($LabConfig.Root)\$_")) {New-Item -type File -Path "$($LabConfig.Root)\$_";WriteInfo $_.FullName.Length}} 
 
-if(!(Test-Path "$($LabConfig.VHDStore)\ParentDisks"))
-{
-    New-Item -ItemType Directory -Path "$($LabConfig.VHDStore)\ParentDisks"
-}    
+
+    
 #Download conver-windowsimage into Tools and ToolsVHD
 WriteInfoHighlighted "Testing convert-windowsimage presence in \Tools"
 if(Test-Path "$($LabConfig.Root)\Tools\convert-windowsimage.ps1")
@@ -444,29 +685,45 @@ else {
 
 #Check vSwitch on Host
 WriteInfoHighlighted "Getting vSwitch ..."
-$LabSwitch = Get-VMSwitch | Where-Object {($_.SwitchType -eq "External") -and ($_.Name -eq "Lab")}
-$cluSwitch = Get-VMSwitch | Where-Object {($_.SwitchType -eq "Internal") -and ($_.Name -eq "Cluster")}
+$vms = Get-VMSwitch
+$extSwitch = $vms | Where-Object {($_.SwitchType -eq "External") -and ($_.Name -eq "External")}
+$labSwitch = $vms | Where-Object {($_.SwitchType -eq "Internal") -and ($_.Name -eq "Lab")}
+$cluSwitch = $vms | Where-Object {($_.SwitchType -eq "Internal") -and ($_.Name -eq "Cluster")}
 
-if ($LabSwitch)
+if ($extSwitch)
 {
-    WriteInfo "`t Listing External vSwitch"
-    $LabSwitch | Format-Table -AutoSize
+    WriteInfo "`t Listing External vSwitch which for VM external access"
+    $extSwitch | Format-Table -AutoSize
 }
 else {
     
     WriteInfo "`t Getting Physical NetAdapter"
     $pNic = Get-NetAdapter -Physical | Where-Object {$_.Status -eq "Up"} | Select-Object -First 1
     WriteInfo "`t Creating virtual Switch - external"
-    $LabSwitch = New-VMSwitch -Name "Lab" -NetAdapterName $pNIC.Name
+    $extSwitch = New-VMSwitch -Name "External" -NetAdapterName $pNIC.Name -AllowManagementOS $true
+    $extSwitch | Format-Table -AutoSize
 }
+
+if($labSwitch)
+{
+    WriteInfo "`t Listing Internal vSwtich for Lab"
+    $labSwitch | Format-Table -AutoSize
+}
+else
+{
+    WriteInfo "`t Creating vSwitch for Lab network"
+    $labSwitch = New-VMSwitch -Name "Lab" -SwitchType Internal
+    $labSwitch | Format-Table -AutoSize
+}
+
 if ($cluSwitch)
 {
-    WriteInfo "`t Listing Internal vSwitch"
+    WriteInfo "`t Listing Internal vSwitch for Cluster"
     $cluSwitch | Format-Table -AutoSize
 }
 else
 {
-    WriteInfo "`t Creating virtual Switch for Cluster network"
+    WriteInfo "`t Creating vSwitch for Cluster network"
     $cluSwitch = New-VMSwitch -Name "Cluster" -SwitchType Internal
     $cluSwitch | Format-Table -AutoSize
 }
@@ -476,105 +733,10 @@ WriteInfo "Script Finished at $(Get-Date) and took $(((Get-date) - $startDatetim
 Stop-Transcript
 #endregion
 
-#region ParentDisk Check and Generater
-#Start Log
-Start-Transcript -Path "$($LabConfig.Root)\ParentDisks.log"
-$StartParentVHDDateTime = Get-Date
-WriteInfo "Starting Create Parent Disks at $StartParentVHDDateTime"
-
-
-function Convert-ISO2VHD{
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]
-        $ISOFullName,
-        [Parameter(Mandatory=$true)]
-        [int]
-        $ImageIndex,
-        [Parameter(Mandatory=$true)]
-        [string]
-        $VHDPath,
-        [Parameter(Mandatory=$true)]
-        [string]
-        $VHDName,
-        [Parameter(Mandatory=$true)]
-        [int64]
-        $VHDSize
-    )
-    if(Test-Path $ISOFullName)
-    {
-        WriteInfoHighlighted "Find ISO File $ISOFullName"
-        WriteInfoHighlighted "Converting ISO Image to VHD Disks"
-        $iso = Mount-DiskImage $ISOFullName -PassThru
-        $isoDriverLetter = (Get-Volume -DiskImage $iso).DriveLetter
-    }
-    else {
-        WriteError "The ISO File $ISOFullName doesn't exists, please dobule check"
-    }
-    WriteInfoHighlighted "Loading convert-WindowsImage.ps1 ..."
-    . "$($LabConfig.Root)\tools\convert-windowsimage.ps1"
-    
-    if (!(Test-Path "$($isoDriverLetter):\sources\install.wim"))
-    {
-        WriteError "Install.wim no found in $($isoDriverLetter):\"
-        WriteInfoHighlighted "Dismounting ISO file $ISOFullName"
-        if ($iso -ne $null)
-        {
-            $iso | Dismount-DiskImage
-        }
-    }
-    else {
-        try {
-            WriteInfo "Found install.wim file in $($isoDriverLetter):\"
-            WriteInfo "Getting Image information from $($isoDriverLetter):\sources\install.wim"
-            $images= Get-WindowsImage -ImagePath "$($isoDriverLetter):\sources\install.wim"
-            foreach($image in $images)
-            {
-                WriteInfo ($image.ImageIndex.toString() + " - " + $image.ImageName)
-            }            
-            Convert-WindowsImage -SourcePath "$($isoDriverLetter):\sources\install.wim" -Edition $ImageIndex -VHDPath  "$VHDPath\$VHDName" `
-            -SizeBytes $VHDSize -VHDFormat VHDX -Disklayout UEFI            
-        }
-        catch {
-            WriteError $_.Exception.Message
-        }
-        Finally{
-            $iso | Dismount-DiskImage
-        }        
-    }
-}
-
-#grab all parent disks 
-$ParentDisks = Get-ChildItem "$($LabConfig.VHDStore)\ParentDisks" -ErrorAction SilentlyContinue -Include "*.vhdx" -Recurse
-
-if($ParentDisks -eq $null)
-{
-    # 1 : Server 2016 Standard
-    # 2 : Server 2016 Standard GUI
-    # 3 : Server 2016 DataCenter
-    # 4 : Server 2016 DataCenter GUI
-    WriteInfo "There is nothing in VDHStore $($LabConfig.VHDStore)\ParentDisks"
-    WriteInfo "Creating Parent disks in $($LabConfig.VHDStore)\ParentDisks"
-    #$Win2K6ISO = Get-ChildItem -Path $($LabConfig.ISOStore) -Recurse "en_windows_server_2016_vl_x64_dvd_11636701.iso"
-    $Win2K6ISO = Get-FileinMultiPath $($LabConfig.ISOStore) $($LabConfig.Win2K6VL)
-    Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex 3 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_Core_G2.vhdx" -VHDSize 30GB
-    Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex 4 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_G2.vhdx" -VHDSize 60GB
-}
-else
-{
-    WriteInfo "There are $($ParentDIsks.Count) Perents Disks exists in $($LabConfig.VHDStore)\ParentDisks"
-    foreach($d in $ParentDisks)
-    {
-        WriteInfo $d
-    }    
-}
-WriteInfo "Script Finished at $(Get-Date) and took $(((Get-date) - $StartParentVHDDateTime).TotalSeconds) Seconds"
-Stop-Transcript
-#endregion
-
 #region Unattend part
 
-function CreateUnattendFile{
+function CreateUnattendFile
+{
     param(
         [Parameter(Mandatory=$true)]
         [string]
@@ -596,6 +758,9 @@ function CreateUnattendFile{
     {
         Remove-Item "$($LabConfig.Root)\unattend.xml"
     }
+    #
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/
+    #
     $unattendFile = New-Item "$($LabConfig.Root)\unattend.xml" -ItemType File
     $xmlUnattend = [xml]@"
 <?xml version="1.0" encoding="utf-8"?>
@@ -605,9 +770,9 @@ function CreateUnattendFile{
             <WindowsDeploymentServices>
                 <Login>
                     <Credentials>
-                        <Domain>RNEA</Domain>
-                        <Password>Esoteric$</Password>
-                        <Username>tv2bot</Username>
+                        <Domain></Domain>
+                        <Password></Password>
+                        <Username></Username>
                     </Credentials>
                 </Login>
             </WindowsDeploymentServices>
@@ -654,15 +819,22 @@ function CreateUnattendFile{
     </settings>
     <settings pass="oobeSystem">
         <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <UserAccounts>
+                <AdministratorPassword>
+                    <Value>UABAAHMAcwB3AG8AcgBkADEAIQBBAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAFAAYQBzAHMAdwBvAHIAZAA=</Value>
+                    <PlainText>false</PlainText>
+                </AdministratorPassword>
+            </UserAccounts>
             <OOBE>
                 <HideEULAPage>true</HideEULAPage>
+                <HideLocalAccountScreen>true</HideLocalAccountScreen>
             </OOBE>
             <TimeZone>China Standard Time</TimeZone>
             <RegisteredOwner>SCLAB</RegisteredOwner>
             <RegisteredOrganization>SCLAB</RegisteredOrganization>
             <FirstLogonCommands>
                 <SynchronousCommand wcm:action="add">
-                    <CommandLine>cmd /c call C:\TV2OPS\Script\StartupStage0.bat</CommandLine>
+                    <CommandLine>cmd /c call C:\SetIP.ps1</CommandLine>
                     <Order>1</Order>
                     <Description>Setup IP</Description>
                 </SynchronousCommand>
@@ -681,7 +853,6 @@ function CreateUnattendFile{
             <UserLocale>en-US</UserLocale>
         </component>
     </settings>
-    <cpi:offlineImage cpi:source="wim:d:/hpse316.wim#Windows Server 2008 ENT x64 SP2 for HP SE316(V1.0.0)" xmlns:cpi="urn:schemas-microsoft-com:cpi" />
 </unattend>
 "@
 
@@ -712,7 +883,7 @@ switch($Role)
     "DomainController" {$cmdline = "Powershell.exe C:\DCPromo.ps1"}
     "WindowsAdminCenter" {$cmdline = "Powershell.exe C:\WAC_Deploy.ps1"}
     "ScaleOutFileServer" {$cmdline = "PowerShell.exe C:\SOFS_Deploy.ps1"}
-    "Hyper-VHost" {$cmdline = "PowerShell.exe C:\Hyper-VHost_Deploy.ps1"}
+    "Hyper-V-Host" {$cmdline = "PowerShell.exe C:\Hyper-V-Host_Deploy.ps1"}
 
 }
 
@@ -740,9 +911,17 @@ function CreateFirstLogonScriptFile
             Remove-Item $DCPromoScriptFile
         }
         $DCPromo = @"
-Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+. C:\SetIP.ps1
+Install-WindowsFeature -Name DHCP,AD-Domain-Services -IncludeManagementTools
 Install-ADDSForest -DomainName $($Labconfig.DomainName) -DomainNetBIOSName $($Labconfig.DomainNetbiosName) -ForestMode Win2012 -DomainMode Win2012 -InstallDNS -SkipAutoConfigureDNS -SafeModeAdministratorPassword (ConvertTo-SecureString -string "P@ssword" -AsPlainText -Force) -Force
+Add-DhcpServerInDC
+Add-DhcpServerv4Scope -Name "Lab Network" -StartRange "192.168.1.200" -EndRange "192.168.1.250" -SubnetMask "255.255.255.0"
+Add-DhcpServerv4Scope -Name "Cluster Network" -StartRange "10.10.10.200" -EndRange "10.10.10.250" -SubnetMask "255.255.255.0"
+Set-DhcpServerv4OptionValue -ScopeId "192.168.1.0" -DnsServer $($LabConfig.VMs[0].Nic1.IPAddr) -Router 192.168.1.1
+Set-DhcpServerv4OptionValue -ScopeId "10.10.10.0" -DnsServer $($LabConfig.VMs[0].Nic1.IPAddr) -Router 10.10.10.1
+Set-DhcpServerv4Binding -InterfaceAlias $($LabConfig.VMs[0].Nic1.Switch)
 "@
+        
         Set-Content -Path $DCPromoScriptFile -Value $DCPromo
         return $DCPromoScriptFile
     }
@@ -754,6 +933,7 @@ Install-ADDSForest -DomainName $($Labconfig.DomainName) -DomainNetBIOSName $($La
             Remove-Item $wacDeployScriptFile
         }
         $wacDeployScriptFileContent = @"
+. C:\SetIP.ps1
 Install-WindowsFeature -Name FileAndStorage-Services,File-Services,FS-FileServer,RSAT,RSAT-Role-Tools,RSAT-Hyper-V-Tools
 "@
         Set-Content -Path $wacDeployScriptFile -Value $wacDeployScriptFileContent
@@ -767,11 +947,80 @@ Install-WindowsFeature -Name FileAndStorage-Services,File-Services,FS-FileServer
             Remove-Item $SOFSDeployScriptFile
         }
         $SOFSDeployScriptFileContent = @"
+. C:\SetIP.ps1
 Install-WindowsFeature -Name File-Services,Failover-Clustering -IncludeManagementTools
 "@
         Set-Content -Path $SOFSDeployScriptFile -Value $SOFSDeployScriptFileContent
         return $SOFSDeployScriptFile
     }
+    if($Role -eq "Hyper-V-Host")
+    {
+        $HyperVHostDeployScriptFile = "$($Labconfig.Root)\Hyper-V-Host_Deploy.ps1"
+        if (Test-Path $HyperVHostDeployScriptFile)
+        {
+            Remove-Item $HyperVHostDeployScriptFile
+        }
+        $HyperVHostDeployScriptFileContent = @"
+. C:\SetIP.ps1
+Install-WindowsFeature -Name Hyper-V,File-Services,Failover-Clustering -IncludeManagementTools
+"@
+        Set-Content -Path $HyperVHostDeployScriptFile -Value $HyperVHostDeployScriptFileContent
+        return $HyperVHostDeployScriptFile
+    }
+}
+
+function CreateSetIPScriptFile
+{
+    param(
+        # Parameter help description        
+        [Parameter(Mandatory = $true)]
+        [hashtable]
+        $VMMetadata
+    )
+    $SetIPScriptFile = "$($LabConfig.Root)\SetIP.ps1"
+    if(Test-Path $SetIPScriptFile)
+    {
+        Remove-Item $SetIPScriptFile
+    }
+
+    # If Nic0 require Static IP
+    if (($VMMetadata.Nic0.DHCP -eq "Disabled") -or ($VMMetadata.Nic0.IPAddr -ne $null))
+    {
+        $SetIPScriptFileContent = @"
+`$nics = Get-NetAdapter | Sort-Object -Property MacAddress
+New-NetIPAddress -InterfaceIndex `$nics[0].ifIndex -IPAddress $($VMMetadata.Nic0.IPAddr) -DefaultGateway $($VMMetadata.Nic0.Gateway) -PrefixLength $($VMMetadata.Nic0.PrefixLength)
+`$nics[0] | Rename-NetAdapter -NewName $($VMMetadata.Nic0.Switch)
+`$nics[0] | Set-DnsClientServerAddress -ServerAddresses ("$($VMMetadata.Nic0.DNS)")`n
+"@
+    }
+    else
+    {
+        $SetIPScriptFileContent = @"
+`$nics = Get-NetAdapter | Sort-Object -Property MacAddress
+`$nics[0] | Set-NetIpInterface -Dhcp Enabled
+`$nics[0] | Rename-NetAdapter -NewName $($VMMetadata.Nic0.Switch)`n
+"@      
+    }
+    
+    # If Nic1 require Static IP    
+    if (($VMMetadata.NIC1.DHCP -eq "Disabled") -or ($VMMetadata.NIC1.IPAddr -ne $null))
+    {
+        $SetIPScriptFileContent += @"
+
+Set-NetIPInterface -InterfaceIndex `$nics[1].ifIndex -IPAddress $($VMMetadata.NIC1.IPAddr) -DefaultGateway $($VMMetadata.NIC1.Gateway) -PrefixLength $($VMMetadata.NIC1.PrefixLength)
+`$nics[1] | Rename-NetAdapter -NewName $($VMMetadata.Nic1.Switch) -ErrorAction SilentlyContinue      
+"@
+    }
+    else
+    {
+        $SetIPScriptFileContent += @"
+
+`$nics[1] | Set-NetIpInterface -Dhcp Enabled
+`$nics[1] | Rename-NetAdapter -NewName $($VMMetadata.Nic1.Switch)
+"@      
+    }
+    Set-Content -Path $SetIPScriptFile -Value $SetIPScriptFileContent
+    return $SetIPScriptFile
 }
 
 #endregion
@@ -784,6 +1033,7 @@ foreach ($dc in $DCMetadata)
 {
     BuildVM -VMMetadata $dc
 }
+sleep -Seconds 500
 #endregion
 
 $wacMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "WindowsAdminCenter"}
