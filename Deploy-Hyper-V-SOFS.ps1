@@ -11,10 +11,10 @@ $LabConfig = @{Root = "$home\SCLAB";
                     ServerDCCoreVHD = "Win2016_DC_Core_G2.vhdx";
                     }                
                 TimeZone = "China Standard Time";
-                VHDStore = "D:;F:";
-                ISOStore = "D:;E:\Software\ISO;D:\Databank\Software\ISO";
+                VHDStore = "G:;D:;F:";
+                ISOStore = "D:;E:\Software\ISO;D:\Databank\Software\ISO;E:\Software\ISO\Microsoft\OS\Windows Server 2016";
                 Win2K6VL = "en_windows_server_2016_vl_x64_dvd_11636701.iso";
-                VMHome = "D:\VMs;F:\VMs";
+                VMHome = "G:\VMs;D:\VMs;F:\VMs";
                 VMs = @()}
 
 #Add DC's info
@@ -273,7 +273,7 @@ function CreateVHDTemplate{
        #$Win2K6ISO = Get-FileinMultiPath $($LabConfig.ISOStore) $($LabConfig.Win2K6VL)
        #$Win2K6ISO = Get-ChildItem -Path $p -Recurse $($LabConfig.Win2K6VL)
        $Win2K6ISO = GetFirstFileItem -Path $($LabConfig.ISOStore) -FileName $($LabConfig.Win2K6VL)
-       if (Test-Path $Win2K6ISO)
+       if (($Win2K6ISO -ne $null) -and (Test-Path $Win2K6ISO))
        {
            #Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex 3 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_Core_G2.vhdx" -VHDSize 30GB
            #Convert-ISO2VHD -ISOFullName $Win2K6ISO -ImageIndex 4 -VHDPath "$($LabConfig.VHDStore)\ParentDisks" -VHDName "Win2016_DC_G2.vhdx" -VHDSize 60GB
@@ -590,26 +590,33 @@ function BuildVM
         $vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
         if ($vm -eq $null)
         {
-            $vm = New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName $($VMMetadata.NIC0.switch) -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
-            WriteInfo "The Deployment of Virtual Machine $vmName Successed"
-            $vm | Set-VM -ProcessorCount $vmCpuCores -CheckpointType Disabled
-            $vm | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName $($VMMetadata.NIC0.switch)
-
-            # Add 2rd NIC as cluster network if required
-            if ($VMMetadata.NIC1 -ne $null)
+            $vm = New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName $($VMMetadata.NIC0.switch) -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName -ErrorAction Stop
+            if($vm -ne $null)
             {
-                $vm | Add-VMNetworkAdapter -Name $($VMMetadata.Nic1.switch) -SwitchName $($VMMetadata.Nic1.switch)
+                WriteInfo "The Deployment of Virtual Machine $vmName Successed"
+                $vm | Set-VM -ProcessorCount $vmCpuCores -CheckpointType Disabled
+                $vm | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName $($VMMetadata.NIC0.switch)
+    
+                # Add 2rd NIC as cluster network if required
+                if ($VMMetadata.NIC1 -ne $null)
+                {
+                    $vm | Add-VMNetworkAdapter -Name $($VMMetadata.Nic1.switch) -SwitchName $($VMMetadata.Nic1.switch)
+                }
+                
+    
+                WriteInfo "Attaching $vmOSVhdFullName to Virtual Machine $vmName"
+                Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vmOSVhdFullName -ErrorAction SilentlyContinue
+    
+                WriteInfo "Attached $vmOSVhdFullName to Virtual Machine $vmName"
+    
+                # Create VHDs for SSD and HDDs then attach to VM
+                Attach-VhdToVM -VMMetadata $VMMetadata
+                Start-VM -Name $vmName
             }
-            
-
-            WriteInfo "Attaching $vmOSVhdFullName to Virtual Machine $vmName"
-            Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vmOSVhdFullName -ErrorAction SilentlyContinue
-
-            WriteInfo "Attached $vmOSVhdFullName to Virtual Machine $vmName"
-
-            # Create VHDs for SSD and HDDs then attach to VM
-            Attach-VhdToVM -VMMetadata $VMMetadata
-            Start-VM -Name $vmName
+            else
+            {
+                WriteErrorAndExit "The deployment of Virtual Machine $vmName failed."
+            }            
         }
         else
         {
@@ -623,8 +630,7 @@ function BuildVM
         WriteErrorAndExit $_.Exception.Message
     }
     WriteInfo "Script Finished at $(Get-Date) and took $(((Get-date) - $dtVMDeployStart).TotalSeconds) Seconds"
-    Stop-Transcript
-    
+    Stop-Transcript    
 }
 
 function CreateUnattendFile
