@@ -593,6 +593,12 @@ function BuildVM
             $vm = New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName $($VMMetadata.NIC0.switch) -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
             WriteInfo "The Deployment of Virtual Machine $vmName Successed"
             $vm | Set-VM -ProcessorCount $vmCpuCores -CheckpointType Disabled
+            
+            if($VMMetadata.Role -eq "Hyper-V-Host")
+            {
+                $vm | Set-VMProcessor -ExposeVirtualizationExtensions $true
+            }
+            
             $vm | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName $($VMMetadata.NIC0.switch)
 
             # Add 2rd NIC as cluster network if required
@@ -828,6 +834,10 @@ Set-DhcpServerv4Binding -InterfaceAlias $($LabConfig.VMs[0].Nic1.Switch)
         $wacDeployScriptFileContent = @"
 . C:\SetIP.ps1
 Install-WindowsFeature -Name FileAndStorage-Services,File-Services,FS-FileServer,RSAT,RSAT-Role-Tools,RSAT-Hyper-V-Tools
+`$wacUrl = "http://aka.ms/WACDownload"
+`$wacMsi = "C:\WACInstaller.msi"
+(New-Object System.Net.WebClient).DownloadFile(`$wacUrl,`$wacMsi)
+msiexec /i `$wacMsi /qn /L*v C:\WACInstall.txt SME_PORT=443 SSL_CERTIFICATE_OPTION=generate
 "@
         Set-Content -Path $wacDeployScriptFile -Value $wacDeployScriptFileContent
         return $wacDeployScriptFile
@@ -1075,7 +1085,7 @@ foreach ($dc in $DCMetadata)
     BuildVM -VMMetadata $dc
 }
 WriteInfo "Slepping 300 seconds wait Domain Controller getting online!"
-sleep -Seconds 300
+#sleep -Seconds 300
 #endregion
 
 $wacMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "WindowsAdminCenter"}
@@ -1087,10 +1097,16 @@ foreach ($wac in $wacMetadata)
 #region Deploy Scale-Out File Server
 WriteInfo "Starting Deploy Scale-Out File Server"
 WriteInfo "`tGetting Scale-Out File Servers information from Variable"
-#$SOFSMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "ScaleOutFileServer"}
-#foreach($SOFS in $SOFSMetadata)
-#{
-#    BuildVM -VMMetadata $SOFS
-#}
+$SOFSMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "ScaleOutFileServer"}
+foreach($SOFS in $SOFSMetadata)
+{
+    BuildVM -VMMetadata $SOFS
+}
 #endregion
+
+$HyperVHostMetadata = $LabConfig.VMs | Where-Object {$_.Role -eq "Hyper-V-Host"}
+foreach($vhost in $HyperVHostMetadata)
+{
+    BuildVM -VMMetadata $vhost
+}
 
