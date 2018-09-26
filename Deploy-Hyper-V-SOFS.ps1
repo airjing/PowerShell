@@ -590,7 +590,6 @@ function BuildVM
         $vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
         if ($vm -eq $null)
         {
-<<<<<<< HEAD
             $vm = New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName $($VMMetadata.NIC0.switch) -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName
             WriteInfo "The Deployment of Virtual Machine $vmName Successed"
             $vm | Set-VM -ProcessorCount $vmCpuCores -CheckpointType Disabled
@@ -604,10 +603,6 @@ function BuildVM
 
             # Add 2rd NIC as cluster network if required
             if ($VMMetadata.NIC1 -ne $null)
-=======
-            $vm = New-VM -Name $vmName -MemoryStartupBytes $vmMemoryStartupBytes -SwitchName $($VMMetadata.NIC0.switch) -Path $vmHome -Generation 2 -VHDPath $vmOSVhdFullName -ErrorAction Stop
-            if($vm -ne $null)
->>>>>>> 16fd577f08429d4926038ada3127e5b8d117fb7b
             {
                 WriteInfo "The Deployment of Virtual Machine $vmName Successed"
                 $vm | Set-VM -ProcessorCount $vmCpuCores -CheckpointType Disabled
@@ -818,6 +813,7 @@ function CreateFirstLogonScriptFile
         [string]
         $Role
     )
+    #TODO:
     if ($Role -eq "DomainController")
     {
         $DCPromoScriptFile = "$($LabConfig.Root)\DCPromo.ps1"
@@ -828,13 +824,14 @@ function CreateFirstLogonScriptFile
         $DCPromo = @"
 . C:\SetIP.ps1
 Install-WindowsFeature -Name DHCP,AD-Domain-Services -IncludeManagementTools
-Install-ADDSForest -DomainName $($Labconfig.DomainName) -DomainNetBIOSName $($Labconfig.DomainNetbiosName) -ForestMode Win2012 -DomainMode Win2012 -InstallDNS -SkipAutoConfigureDNS -SafeModeAdministratorPassword (ConvertTo-SecureString -string "P@ssword" -AsPlainText -Force) -Force
+Install-ADDSForest -DomainName $($Labconfig.DomainName) -DomainNetBIOSName $($Labconfig.DomainNetbiosName) -ForestMode Win2012 -DomainMode Win2012 -InstallDNS -SkipAutoConfigureDNS -SafeModeAdministratorPassword (ConvertTo-SecureString -string "P@ssword" -AsPlainText -Force) -Force -NoRebootOnCompletion
 Add-DhcpServerInDC
 Add-DhcpServerv4Scope -Name "Lab Network" -StartRange "192.168.1.200" -EndRange "192.168.1.250" -SubnetMask "255.255.255.0"
 Add-DhcpServerv4Scope -Name "Cluster Network" -StartRange "10.10.10.200" -EndRange "10.10.10.250" -SubnetMask "255.255.255.0"
 Set-DhcpServerv4OptionValue -ScopeId "192.168.1.0" -DnsServer $($LabConfig.VMs[0].Nic1.IPAddr) -Router 192.168.1.1
 Set-DhcpServerv4OptionValue -ScopeId "10.10.10.0" -DnsServer $($LabConfig.VMs[0].Nic1.IPAddr) -Router 10.10.10.1
-Set-DhcpServerv4Binding -InterfaceAlias $($LabConfig.VMs[0].Nic1.Switch)
+Set-DhcpServerv4Binding -BindingState $true -InterfaceAlias $($LabConfig.VMs[0].Nic1.Switch)
+Restart-Computer -Force
 "@
         
         Set-Content -Path $DCPromoScriptFile -Value $DCPromo
