@@ -1123,3 +1123,29 @@ foreach($vhost in $HyperVHostMetadata)
     BuildVM -VMMetadata $vhost
 }
 
+function Deploy-SOFS
+{
+    #doc: https://docs.microsoft.com/en-us/windows-server/remote/remote-desktop-services/rds-storage-spaces-direct-deployment
+    #doc: https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/create-volumes
+    #doc：https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/hh831463(v%3dws.11)
+    # Run on Scale Out File Server
+    Test-Cluster -Node SOFS01,SOFS02,SOFS03,SOFS04
+    New-Cluster -Name SCLABCLUA -Node SOFS01,SOFS02,SOFS03,SOFS04
+    
+    # Enable S2D (Storage Spaces Direct)
+    Enable-ClusterS2D
+
+    # Create a virtual disk volume
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName VDisk01 -FileSystem CSVFS_ReFS -Size 2TB
+
+    # Create Sacle-out file server
+    Add-ClusterScaleOutFileServerRole -Name SOFS -Cluster SCLABCLUA
+    
+    #Add Fie Share for "SMB Share - Applications" with Option "Enable continuous availability"
+    #Create a new SMB file share on the SOFS cluster
+    New-Item -Path C:\ClusterStorage\Volume1\VMs -ItemType Directory
+    New-SmbShare -Name VMStore -Path C:\ClusterStorage\Volume1\VMs
+
+
+}
+
