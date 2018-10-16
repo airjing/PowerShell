@@ -1145,6 +1145,7 @@ function Deploy-SOFS
     #Create a new SMB file share on the SOFS cluster
     New-Item -Path C:\ClusterStorage\Volume1\VMs -ItemType Directory
     New-SmbShare -Name VMStore -Path C:\ClusterStorage\Volume1\VMs
+    # This is new added lines.
 
 
 }
