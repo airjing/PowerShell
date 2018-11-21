@@ -5,3 +5,4 @@ powershell_blog.XML
 ps.csv
 psmetadata.xml
 *clixml
+*.log
