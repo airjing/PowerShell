@@ -19,15 +19,32 @@ $AzureRM = Get-Module -Name AzureRM -ListAvailable | Select-Object -First 1
 if($AzureRM -ne $null)
 {
     Write-Host "The AzureRM $AzureRMVersion has already installed."
+    Write-Host "Recommend Uninstall AzureRM, then install module Az"
+    Uninstall-AzureRm
+}
+#else {
+#    Install-Module -Name AzureRM -AllowClobber
+#    Import-Module -Name AzureRM
+#}
+
+# Cross-platform Az module will replacing AzureRM. 
+# https://azure.microsoft.com/en-us/blog/azure-powershell-cross-platform-az-module-replacing-azurerm/
+# https://docs.microsoft.com/en-us/powershell/azure/migrate-from-azurerm-to-az?view=azps-1.0.0
+$Az = Get-InstalledModule -Name Az -AllVersions | Select-Object Name,Version
+if($Az -ne $null)
+{
+    Write-Host "The module Az has already installed."
+    Update-Module -Name Az
 }
 else {
-    Install-Module -Name AzureRM -AllowClobber
-    Import-Module -Name AzureRM
+    Install-Module -Name Az -AllowClobber
 }
 
+C:\Windows\System32\cmd.exe /E:ON /V:ON /K "C:\Program Files\Microsoft SDKs\Azure\.NET SDK\v2.9\\bin\setenv.cmd"
 ## Getting started with Azure PowerShell
 #login to Azure
-Connect-AzureRmAccount
+#Connect-AzureRmAccount
+Connect-AzAccount
 # Get a credential
 $cred = get-credential -message "Enter the credential that will be used for new deployed VM"
 $vmName = "DemoVM1"
@@ -65,3 +82,4 @@ foreach ($rg in $rgs)
     Get-AzureRmResource | where-object ResourceGroupName -eq $rg | Select-Object ResourceGroupName,Location,ResourceType,Name
 
 }
+
