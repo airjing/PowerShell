@@ -1,6 +1,6 @@
 # Setup Environmental Variables
-[environment]::SetEnvironmentVariable("VAGRANT_HOME","F:\ApplicationsData\.vagrant.d")
-[environment]::SetEnvironmentVariable("VAGRANT_DOTFILE_PATH","E:\VMHome\.vagrant-hyperv")
+[environment]::SetEnvironmentVariable("VAGRANT_HOME","F:\ApplicationsData\.vagrant.d","Machine")
+[environment]::SetEnvironmentVariable("VAGRANT_DOTFILE_PATH","E:\VMHome\.vagrant-hyperv","Machine")
 [environment]::SetEnvironmentVariable("JAVA_HOME","E:\Applications\Java\jdk-11.0.1","Machine")
 $pChef = "E:\Applications\opscode\chef-workstation\bin\"
 $pJava = "%JAVA_HOME%\bin"
