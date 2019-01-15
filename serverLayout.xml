@@ -1,0 +1,1092 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="serverLayout.xsd">
+  <components>
+    <serverLayout version="1.0">
+      <branch branchId="113" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14VBE">
+        <groupdefinitions />
+        <zones>
+          <zone name="BJE14VBEA" zoneId="0">
+            <nlbs>
+              <nlb connectionString="BJE14-VDB-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VDB-01">
+                <groups />
+                <roles>
+                  <role name="vodBackendDB" />
+                  <role name="ContentDistributionDB" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-VCTRL-NLB.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VCTRL-NLB">
+                <groups />
+                <roles>
+                  <role name="ContentDistributionControllerWS" />
+                  <role name="vodCreatorControllerWS" />
+                </roles>
+              </nlb>
+            </nlbs>
+            <computers>
+              <computer connectionString="10.164.70.11" name="MRBJ-DC-01" domain="RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ntp" />
+                </roles>
+              </computer>
+              <computer connectionString="10.164.70.12" name="MRBJ-DC-02" domain="RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ntp" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VCTRL-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VCTRL-01" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ContentDistributionControllerWS" />
+                  <role name="vodCreatorControllerWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VCTRL-02.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VCTRL-02" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ContentDistributionControllerWS" />
+                  <role name="vodCreatorControllerWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VMGMT-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VMGMT-01" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ossVodBackendWS" />
+                  <role name="ossContentDistributionWS" />
+                  <role name="smtVODBackend" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDS-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDS-01" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ContentDistributionServer" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDS-02.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDS-02" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ContentDistributionServer" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDS-03.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDS-03" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ContentDistributionServer" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+          <zone name="BJEV14VBEB" zoneId="1">
+            <nlbs />
+            <computers>
+              <computer connectionString="BJE14-IMP-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-IMP-01" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="vodImportPreprocessorService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CR-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CR-01" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="vodCreator" />
+                  <role name="vodCreatorStation" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CR-02.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CR-02" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="vodCreator" />
+                  <role name="vodCreatorStation" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CR-03.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CR-03" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="vodCreator" />
+                  <role name="vodCreatorStation" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CR-04.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CR-04" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="vodCreator" />
+                  <role name="vodCreatorStation" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+        </zones>
+      </branch>
+      <branch branchId="213" domain="SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14LBE">
+        <groupdefinitions />
+        <zones>
+          <zone name="BJE14LBE" zoneId="0">
+            <nlbs>
+              <nlb connectionString="BJE14-ADB-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ADB-01">
+                <groups />
+                <roles>
+                  <role name="liveBackendDB" />
+                  <role name="ListingsSettingsDB" />
+                  <role name="L2VBackendDB" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-ACTRL-NLB.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ACTRL-NLB">
+                <groups />
+                <roles>
+                  <role name="crashDetectorService" />
+                  <role name="LOTTController" />
+                  <role name="LottKeyGenerator" />
+                  <role name="ListingsLibrarian" />
+                  <role name="BackendLiveToVodControllerWS" />
+                  <role name="acquisitionControllerWS" />
+                  <role name="ListingsSyncService" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-AMGMT-NLB.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-AMGMT-NLB">
+                <groups />
+                <roles>
+                  <role name="ossBackendBlackoutWS" />
+                  <role name="ossLiveBackend" />
+                  <role name="LiveBackendManagement" />
+                  <role name="smtBackendLiveToVod" />
+                  <role name="ossBackendLiveToVodWS" />
+                  <role name="LOTTOSS" />
+                </roles>
+              </nlb>
+            </nlbs>
+            <computers>
+              <computer connectionString="10.164.70.11" name="MRBJ-DC-01" domain="RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ntp" />
+                </roles>
+              </computer>
+              <computer connectionString="10.164.70.12" name="MRBJ-DC-02" domain="RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ntp" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-ACQ-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ACQ-01" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="acquisitionServiceV3" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-ACQ-02.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ACQ-02" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="acquisitionServiceV3" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-ACQ-03.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ACQ-03" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="acquisitionServiceV3" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-ACQ-04.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ACQ-04" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="acquisitionServiceV3" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-ACQ-05.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ACQ-05" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="acquisitionServiceV3" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-ACTRL-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ACTRL-01" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="crashDetectorService" />
+                  <role name="LOTTController" />
+                  <role name="LottKeyGenerator" />
+                  <role name="ListingsLibrarian" />
+                  <role name="BackendLiveToVodControllerWS" />
+                  <role name="acquisitionControllerWS" />
+                  <role name="ListingsSyncService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-ACTRL-02.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-ACTRL-02" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="crashDetectorService" />
+                  <role name="LOTTController" />
+                  <role name="LottKeyGenerator" />
+                  <role name="ListingsLibrarian" />
+                  <role name="BackendLiveToVodControllerWS" />
+                  <role name="acquisitionControllerWS" />
+                  <role name="ListingsSyncService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-L2VRS-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-L2VRS-01" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="BackendLiveToVodRecServer" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-L2VRS-02.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-L2VRS-02" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="BackendLiveToVodRecServer" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-L2VRS-03.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-L2VRS-03" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="BackendLiveToVodRecServer" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-L2VRS-04.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-L2VRS-04" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="BackendLiveToVodRecServer" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-LSSIS-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-LSSIS-01" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="LOTTIngestor" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-LSSIS-02.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-LSSIS-02" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="LOTTIngestor" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-AMGMT-01.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-AMGMT-01" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="ossBackendBlackoutWS" />
+                  <role name="ossLiveBackend" />
+                  <role name="LiveBackendManagement" />
+                  <role name="smtBackendLiveToVod" />
+                  <role name="ossBackendLiveToVodWS" />
+                  <role name="LOTTOSS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-AMGMT-02.SRVBE.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-AMGMT-02" domain="SRVBE">
+                <groups />
+                <roles>
+                  <role name="ossBackendBlackoutWS" />
+                  <role name="ossLiveBackend" />
+                  <role name="LiveBackendManagement" />
+                  <role name="smtBackendLiveToVod" />
+                  <role name="ossBackendLiveToVodWS" />
+                  <role name="LOTTOSS" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+        </zones>
+      </branch>
+      <branch branchId="313" domain="SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14">
+        <groupdefinitions>
+          <group name="DSCluster1" type="DServerCluster" />
+          <group name="DSCluster2" type="DServerCluster" />
+          <group name="SG1" type="ServiceGroup" />
+          <group name="SG2" type="ServiceGroup" />
+          <group name="CDRCluster" type="ContentReceiverCluster" />
+          <group name="VSCluster1" type="VodCluster" />
+          <group name="VSCluster2" type="VodCluster" />
+          <group name="TSCluster1" type="TimeshiftCluster" />
+          <group name="TSCluster2" type="TimeshiftCluster" />
+        </groupdefinitions>
+        <zones>
+          <zone name="Branch" zoneId="3">
+            <nlbs>
+              <nlb connectionString="BJE14-SF-NLB.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SF-NLB">
+                <groups />
+                <roles>
+                  <role name="dserverController" />
+                  <role name="LiveBackendUpdate" />
+                  <role name="sessionKeyAuthorityWS" />
+                  <role name="sessionKeyAuthority_KeyGenerator" />
+                  <role name="vodControllerWS" />
+                  <role name="ListingsLibrarian" />
+                  <role name="timeshiftControllerWS" />
+                  <role name="dvbChannelMapImportService" />
+                  <role name="BranchFacade" />
+                  <role name="PlayReadyServer" />
+                  <role name="ppvOfferUpdaterService" />
+                  <role name="ListingsSyncService" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-HPNR-NLB.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-HPNR-NLB">
+                <groups />
+                <roles>
+                  <role name="ossHighPriorityNotificationWS" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-BDB-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-BDB-01">
+                <groups />
+                <roles>
+                  <role name="ListingsSettingsDB" />
+                  <role name="BranchDB" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-CDB-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDB-01">
+                <groups />
+                <roles>
+                  <role name="CloudDVRDB" />
+                  <role name="VSPPServiceMappingDB" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-BMGMT-NLB.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-BMGMT-NLB">
+                <groups />
+                <roles>
+                  <role name="bss" />
+                  <role name="ossBranch" />
+                  <role name="ossEPG" />
+                  <role name="ossNotificationsWS" />
+                  <role name="ossPPV" />
+                  <role name="ossEAS" />
+                  <role name="ossDTT" />
+                  <role name="ossRemoteRecord" />
+                  <role name="ossURL" />
+                  <role name="ossVodBranchWS" />
+                  <role name="ossTimeShift" />
+                  <role name="smtChannelMap" />
+                  <role name="smtLive2" />
+                  <role name="smtPPV" />
+                  <role name="smtDTT" />
+                  <role name="smtSMS" />
+                  <role name="smtVOD" />
+                  <role name="smtTimeShift" />
+                  <role name="smtRDP" />
+                  <role name="OssDPQueueManagementWS" />
+                  <role name="ossLiveDeploymentWS" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-CDVRFE-NLB.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDVRFE-NLB">
+                <groups />
+                <roles>
+                  <role name="VsppMappingWS" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-CDVRBE-NLB.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDVRBE-NLB">
+                <groups />
+                <roles>
+                  <role name="JITSchedulerService" />
+                  <role name="CloudRecordingNotificationWS" />
+                  <role name="CloudDVRRecordingRecycler" />
+                </roles>
+              </nlb>
+            </nlbs>
+            <computers>
+              <computer connectionString="10.164.70.11" name="MRBJ-DC-01" domain="RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ntp" />
+                </roles>
+              </computer>
+              <computer connectionString="10.164.70.12" name="MRBJ-DC-02" domain="RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ntp" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-BMGMT-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-BMGMT-01" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="bss" />
+                  <role name="ossBranch" />
+                  <role name="ossEPG" />
+                  <role name="ossNotificationsWS" />
+                  <role name="ossPPV" />
+                  <role name="ossEAS" />
+                  <role name="ossDTT" />
+                  <role name="ossRemoteRecord" />
+                  <role name="ossURL" />
+                  <role name="ossVodBranchWS" />
+                  <role name="ossTimeShift" />
+                  <role name="smtChannelMap" />
+                  <role name="smtLive2" />
+                  <role name="smtPPV" />
+                  <role name="smtDTT" />
+                  <role name="smtSMS" />
+                  <role name="smtVOD" />
+                  <role name="smtTimeShift" />
+                  <role name="smtRDP" />
+                  <role name="ossLiveDeploymentWS" />
+                  <role name="OssDPQueueManagementWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-BMGMT-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-BMGMT-02" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="bss" />
+                  <role name="ossBranch" />
+                  <role name="ossEPG" />
+                  <role name="ossNotificationsWS" />
+                  <role name="ossPPV" />
+                  <role name="ossEAS" />
+                  <role name="ossDTT" />
+                  <role name="ossRemoteRecord" />
+                  <role name="ossURL" />
+                  <role name="ossVodBranchWS" />
+                  <role name="ossTimeShift" />
+                  <role name="smtChannelMap" />
+                  <role name="smtLive2" />
+                  <role name="smtPPV" />
+                  <role name="smtDTT" />
+                  <role name="smtSMS" />
+                  <role name="smtVOD" />
+                  <role name="smtTimeShift" />
+                  <role name="smtRDP" />
+                  <role name="ossLiveDeploymentWS" />
+                  <role name="OssDPQueueManagementWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDVRBE-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDVRBE-01" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="JITSchedulerService" />
+                  <role name="CloudRecordingNotificationWS" />
+                  <role name="CloudDVRRecordingRecycler" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDVRBE-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDVRBE-02" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="JITSchedulerService" />
+                  <role name="CloudRecordingNotificationWS" />
+                  <role name="CloudDVRRecordingRecycler" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDVRFE-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDVRFE-01" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="VsppMappingWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDVRFE-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDVRFE-02" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="VsppMappingWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-HPNR-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-HPNR-01" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="ossHighPriorityNotificationWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-HPNR-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-HPNR-02" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="ossHighPriorityNotificationWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SF-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SF-01" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="dserverController" />
+                  <role name="LiveBackendUpdate" />
+                  <role name="sessionKeyAuthorityWS" />
+                  <role name="sessionKeyAuthority_KeyGenerator" />
+                  <role name="vodControllerWS" />
+                  <role name="ListingsLibrarian" />
+                  <role name="timeshiftControllerWS" />
+                  <role name="dvbChannelMapImportService" />
+                  <role name="BranchFacade" />
+                  <role name="PlayReadyServer" />
+                  <role name="ppvOfferUpdaterService" />
+                  <role name="ListingsSyncService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SF-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SF-02" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="dserverController" />
+                  <role name="LiveBackendUpdate" />
+                  <role name="sessionKeyAuthorityWS" />
+                  <role name="sessionKeyAuthority_KeyGenerator" />
+                  <role name="vodControllerWS" />
+                  <role name="ListingsLibrarian" />
+                  <role name="timeshiftControllerWS" />
+                  <role name="dvbChannelMapImportService" />
+                  <role name="BranchFacade" />
+                  <role name="PlayReadyServer" />
+                  <role name="ppvOfferUpdaterService" />
+                  <role name="ListingsSyncService" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+          <zone name="Branch_DMZ" zoneId="0">
+            <nlbs />
+            <computers>
+              <computer connectionString="BJE14-CDR-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDR-01" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                </groups>
+                <roles>
+                  <role name="ContentDistributionReceiver" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDR-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDR-02" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                </groups>
+                <roles>
+                  <role name="ContentDistributionReceiver" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-CDR-03.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-CDR-03" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                </groups>
+                <roles>
+                  <role name="ContentDistributionReceiver" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-EDGE-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-EDGE-01" domain="SRVBRA">
+                <groups>
+                  <membership group="DSCluster1" />
+                </groups>
+                <roles>
+                  <role name="dserverService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-EDGE-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-EDGE-02" domain="SRVBRA">
+                <groups>
+                  <membership group="DSCluster1" />
+                </groups>
+                <roles>
+                  <role name="dserverService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-EDGE-03.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-EDGE-03" domain="SRVBRA">
+                <groups>
+                  <membership group="DSCluster2" />
+                </groups>
+                <roles>
+                  <role name="dserverService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-EDGE-04.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-EDGE-04" domain="SRVBRA">
+                <groups>
+                  <membership group="DSCluster2" />
+                </groups>
+                <roles>
+                  <role name="dserverService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-DRA-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-DRA-01" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="DiscoveryService" />
+                  <role name="SyncService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-DRA-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-DRA-02" domain="SRVBRA">
+                <groups />
+                <roles>
+                  <role name="DiscoveryService" />
+                  <role name="SyncService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VOD-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VOD-01" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                  <membership group="VSCluster1" />
+                </groups>
+                <roles>
+                  <role name="mediaStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VOD-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VOD-02" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                  <membership group="VSCluster2" />
+                </groups>
+                <roles>
+                  <role name="mediaStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VOD-03.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VOD-03" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                  <membership group="VSCluster1" />
+                </groups>
+                <roles>
+                  <role name="mediaStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VOD-04.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VOD-04" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                  <membership group="VSCluster2" />
+                </groups>
+                <roles>
+                  <role name="mediaStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VOD-05.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VOD-05" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                  <membership group="VSCluster2" />
+                </groups>
+                <roles>
+                  <role name="mediaStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-VOD-06.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-VOD-06" domain="SRVBRA">
+                <groups>
+                  <membership group="CDRCluster" />
+                  <membership group="VSCluster2" />
+                </groups>
+                <roles>
+                  <role name="mediaStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-TSS-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-TSS-01" domain="SRVBRA">
+                <groups>
+                  <membership group="TSCluster1" />
+                </groups>
+                <roles>
+                  <role name="timeshiftServerStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-TSS-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-TSS-02" domain="SRVBRA">
+                <groups>
+                  <membership group="TSCluster2" />
+                </groups>
+                <roles>
+                  <role name="timeshiftServerStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-TSS-03.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-TSS-03" domain="SRVBRA">
+                <groups>
+                  <membership group="TSCluster2" />
+                </groups>
+                <roles>
+                  <role name="timeshiftServerStore" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-TSS-04.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-TSS-04" domain="SRVBRA">
+                <groups>
+                  <membership group="TSCluster2" />
+                </groups>
+                <roles>
+                  <role name="timeshiftServerStore" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+          <zone name="SG1" zoneId="1">
+            <nlbs>
+              <nlb connectionString="BJE14-SG1CGW-NLB.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1CGW-NLB">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="clientUpgradeFiles" />
+                  <role name="WSRouter" />
+                  <role name="ListingsClientDataVirtualDirectory" />
+                  <role name="notificationDeliveryService" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-SG1DB-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1DB-01">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="ServiceGroupDB" />
+                  <role name="clientTraceLogDB" />
+                  <role name="activityLogDB" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-SG1CF-NLB.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1CF-NLB">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="bootstrap" />
+                  <role name="CertificateProxyWS" />
+                  <role name="clientEdgeMapWS" />
+                  <role name="clientLoggerWS" />
+                  <role name="dvrV2WS" />
+                  <role name="mdWS" />
+                  <role name="notificationWS" />
+                  <role name="smsPublic" />
+                  <role name="userstorePublicWS" />
+                  <role name="DPQueueManagementWS" />
+                  <role name="dvbSiWS" />
+				  <role name="Test" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-SG1SF-NLB.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1SF-NLB">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="dvrRemote" />
+                  <role name="dvrScheduleUpdaterService" />
+                  <role name="ClientSnapshotService" />
+                  <role name="notificationController" />
+                  <role name="ServiceGroupSMSWS" />
+                  <role name="SGPrivatesessionKeyAuthorityWS" />
+                  <role name="SGTraceLog" />
+                </roles>
+              </nlb>
+            </nlbs>
+            <computers>
+              <computer connectionString="BJE14-SG1CF-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1CF-01" domain="SRVBRA">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="bootstrap" />
+                  <role name="CertificateProxyWS" />
+                  <role name="clientEdgeMapWS" />
+                  <role name="clientLoggerWS" />
+                  <role name="dvrV2WS" />
+                  <role name="mdWS" />
+                  <role name="notificationWS" />
+                  <role name="smsPublic" />
+                  <role name="userstorePublicWS" />
+                  <role name="DPQueueManagementWS" />
+                  <role name="dvbSiWS" />
+				  <role name="Test" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SG1CF-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1CF-02" domain="SRVBRA">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="bootstrap" />
+                  <role name="CertificateProxyWS" />
+                  <role name="clientEdgeMapWS" />
+                  <role name="clientLoggerWS" />
+                  <role name="dvrV2WS" />
+                  <role name="mdWS" />
+                  <role name="notificationWS" />
+                  <role name="smsPublic" />
+                  <role name="userstorePublicWS" />
+                  <role name="DPQueueManagementWS" />
+                  <role name="dvbSiWS" />
+				  <role name="Test" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SG1CGW-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1CGW-01" domain="SRVBRA">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="clientUpgradeFiles" />
+                  <role name="WSRouter" />
+                  <role name="ListingsClientDataVirtualDirectory" />
+                  <role name="notificationDeliveryService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SG1CGW-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1CGW-02" domain="SRVBRA">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="clientUpgradeFiles" />
+                  <role name="WSRouter" />
+                  <role name="ListingsClientDataVirtualDirectory" />
+                  <role name="notificationDeliveryService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SG1SF-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1SF-01" domain="SRVBRA">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="dvrRemote" />
+                  <role name="dvrScheduleUpdaterService" />
+                  <role name="ClientSnapshotService" />
+                  <role name="notificationController" />
+                  <role name="ServiceGroupSMSWS" />
+                  <role name="SGPrivatesessionKeyAuthorityWS" />
+                  <role name="SGTraceLog" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SG1SF-02.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG1SF-02" domain="SRVBRA">
+                <groups>
+                  <membership group="SG1" />
+                </groups>
+                <roles>
+                  <role name="dvrRemote" />
+                  <role name="dvrScheduleUpdaterService" />
+                  <role name="ClientSnapshotService" />
+                  <role name="notificationController" />
+                  <role name="ServiceGroupSMSWS" />
+                  <role name="SGPrivatesessionKeyAuthorityWS" />
+                  <role name="SGTraceLog" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+          <zone name="SG2" zoneId="2">
+            <nlbs>
+              <nlb connectionString="BJE14-SG2DB-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG2DB-01">
+                <groups>
+                  <membership group="SG2" />
+                </groups>
+                <roles>
+                  <role name="ServiceGroupDB" />
+                  <role name="clientTraceLogDB" />
+                  <role name="activityLogDB" />
+                </roles>
+              </nlb>
+            </nlbs>
+            <computers>
+              <computer connectionString="BJE14-SG2SF-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG2SF-01" domain="SRVBRA">
+                <groups>
+                  <membership group="SG2" />
+                </groups>
+                <roles>
+                  <role name="dvrRemote" />
+                  <role name="dvrScheduleUpdaterService" />
+                  <role name="ClientSnapshotService" />
+                  <role name="notificationController" />
+                  <role name="ServiceGroupSMSWS" />
+                  <role name="SGPrivatesessionKeyAuthorityWS" />
+                  <role name="SGTraceLog" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SG2CF-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG2CF-01" domain="SRVBRA">
+                <groups>
+                  <membership group="SG2" />
+                </groups>
+                <roles>
+                  <role name="bootstrap" />
+                  <role name="CertificateProxyWS" />
+                  <role name="clientEdgeMapWS" />
+                  <role name="clientLoggerWS" />
+                  <role name="dvrV2WS" />
+                  <role name="mdWS" />
+                  <role name="notificationWS" />
+                  <role name="smsPublic" />
+                  <role name="userstorePublicWS" />
+                  <role name="DPQueueManagementWS" />
+                  <role name="dvbSiWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SG2CGW-01.SRVBRA.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SG2CGW-01" domain="SRVBRA">
+                <groups>
+                  <membership group="SG2" />
+                </groups>
+                <roles>
+                  <role name="clientUpgradeFiles" />
+                  <role name="ListingsClientDataVirtualDirectory" />
+                  <role name="WSRouter" />
+                  <role name="notificationDeliveryService" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+        </zones>
+      </branch>
+      <branch branchId="413" domain="SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14MDS">
+        <groupdefinitions>
+          <group name="MDSCache1" type="MDSGroup" />
+        </groupdefinitions>
+        <zones>
+          <zone name="BJE14MDS_BE" zoneId="1">
+            <nlbs>
+              <nlb connectionString="BJE14-MDB-01.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-MDB-01">
+                <groups />
+                <roles>
+                  <role name="CommonDB" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-BE-NLB.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-BE-NLB">
+                <groups />
+                <roles>
+                  <role name="FragmentGeneratorService" />
+                  <role name="IngestionService" />
+                  <role name="DataGeneratorService" />
+                  <role name="sessionKeyAuthority_KeyGenerator" />
+                  <role name="sessionKeyAuthorityWS" />
+                  <role name="MDSListingsLibrarian" />
+                  <role name="MdsSlabGenerator" />
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14-MGMT-NLB.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-MGMT-NLB">
+                <groups />
+                <roles>
+                  <role name="contractManagementService" />
+                  <role name="MDSManagementWS" />
+                  <role name="smtMDSManagement" />
+                  <role name="MDSSubscriberManagementWS" />
+                  <role name="smtContracts" />
+                  <role name="smtMDSSpeakerService"/>
+                </roles>
+              </nlb>
+              <nlb connectionString="BJE14SSV.MR.ERICSSON.NET" name="BJE14SSV.MR.ERICSSON.NET">
+                <groups />
+                <roles>
+                  <role name="MDSSpeakerService" />
+                </roles>
+              </nlb>
+            </nlbs>
+            <computers>
+              <computer connectionString="10.164.70.11" name="MRBJ-DC-01" domain="RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ntp" />
+                </roles>
+              </computer>
+              <computer connectionString="10.164.70.12" name="MRBJ-DC-02" domain="RNEA.IPTV.MR.ERICSSON.SE">
+                <groups />
+                <roles>
+                  <role name="ntp" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-BE-01.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-BE-01" domain="SRVMDS">
+                <groups />
+                <roles>
+                  <role name="FragmentGeneratorService" />
+                  <role name="IngestionService" />
+                  <role name="DataGeneratorService" />
+                  <role name="sessionKeyAuthority_KeyGenerator" />
+                  <role name="sessionKeyAuthorityWS" />
+                  <role name="MDSListingsLibrarian" />
+                  <role name="MdsSlabGenerator" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-BE-02.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-BE-02" domain="SRVMDS">
+                <groups />
+                <roles>
+                  <role name="FragmentGeneratorService" />
+                  <role name="IngestionService" />
+                  <role name="DataGeneratorService" />
+                  <role name="sessionKeyAuthority_KeyGenerator" />
+                  <role name="sessionKeyAuthorityWS" />
+                  <role name="MDSListingsLibrarian" />
+                  <role name="MdsSlabGenerator" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-MGMT-01.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-MGMT-01" domain="SRVMDS">
+                <groups />
+                <roles>
+                  <role name="contractManagementService" />
+                  <role name="MDSManagementWS" />
+                  <role name="smtMDSManagement" />
+                  <role name="MDSSubscriberManagementWS" />
+                  <role name="smtContracts" />
+                  <role name="smtMDSSpeakerService"/>
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-MGMT-02.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-MGMT-02" domain="SRVMDS">
+                <groups />
+                <roles>
+                  <role name="contractManagementService" />
+                  <role name="MDSManagementWS" />
+                  <role name="smtMDSManagement" />
+                  <role name="MDSSubscriberManagementWS" />
+                  <role name="smtContracts" />
+                  <role name="smtMDSSpeakerService"/>
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SSV-01.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SSV-01" domain="SRVMDS">
+                <groups />
+                <roles>
+                  <role name="MDSSpeakerService" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-SSV-02.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-SSV-02" domain="SRVMDS">
+                <groups />
+                <roles>
+                  <role name="MDSSpeakerService" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+          <zone name="BJE14MDS_FE" zoneId="0">
+            <nlbs>
+              <nlb connectionString="BJE14-FE-NLB.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-FE-NLB">
+                <groups />
+                <roles>
+                  <role name="MDSContractWS" />
+                  <role name="MDSDvrDataWS" />
+                  <role name="MDSMediaResourceWS" />
+                  <role name="MDSSearchWS" />
+                  <role name="MDSTokenGenerator" />
+                  <role name="MDSSubscriberDataWS" />
+                  <role name="MDSExternalPurchaseWS" />
+                  <role name="MDSMediaCatalog" />
+                  <role name="LicenseServer" />
+                  <role name="MDSListingsWS" />
+                  <role name="MDSVodWS" />
+                  <role name="MDSAuthWS" />
+                  <role name="CloudDVRKeyServer" />
+                  <role name="CloudDVRLicenseServerProxy" />
+                  <role name="CloudDVRPlayReadyServer" />
+                  <role name="MDSEntitlementAdapterWS" />
+                </roles>
+              </nlb>
+            </nlbs>
+            <computers>
+              <computer connectionString="BJE14-FE-01.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-FE-01" domain="SRVMDS">
+                <groups>
+                  <membership group="MDSCache1" />
+                </groups>
+                <roles>
+                  <role name="MDSContractWS" />
+                  <role name="MDSDvrDataWS" />
+                  <role name="MDSMediaResourceWS" />
+                  <role name="MDSSearchWS" />
+                  <role name="MDSTokenGenerator" />
+                  <role name="MDSSubscriberDataWS" />
+                  <role name="MDSExternalPurchaseWS" />
+                  <role name="MDSMediaCatalog" />
+                  <role name="LicenseServer" />
+                  <role name="MDSListingsWS" />
+                  <role name="MDSVodWS" />
+                  <role name="MDSAuthWS" />
+                  <role name="CloudDVRKeyServer" />
+                  <role name="CloudDVRLicenseServerProxy" />
+                  <role name="CloudDVRPlayReadyServer" />
+                  <role name="MDSEntitlementAdapterWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-FE-02.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-FE-02" domain="SRVMDS">
+                <groups>
+                  <membership group="MDSCache1" />
+                </groups>
+                <roles>
+                  <role name="MDSContractWS" />
+                  <role name="MDSDvrDataWS" />
+                  <role name="MDSMediaResourceWS" />
+                  <role name="MDSSearchWS" />
+                  <role name="MDSTokenGenerator" />
+                  <role name="MDSSubscriberDataWS" />
+                  <role name="MDSExternalPurchaseWS" />
+                  <role name="MDSMediaCatalog" />
+                  <role name="LicenseServer" />
+                  <role name="MDSListingsWS" />
+                  <role name="MDSVodWS" />
+                  <role name="MDSAuthWS" />
+                  <role name="CloudDVRKeyServer" />
+                  <role name="CloudDVRLicenseServerProxy" />
+                  <role name="CloudDVRPlayReadyServer" />
+                  <role name="MDSEntitlementAdapterWS" />
+                </roles>
+              </computer>
+              <computer connectionString="BJE14-AF-01.SRVMDS.RNEA.IPTV.MR.ERICSSON.SE" name="BJE14-AF-01" domain="SRVMDS">
+                <groups>
+                  <membership group="MDSCache1" />
+                </groups>
+                <roles>
+                  <role name="DistributedCache" />
+                </roles>
+              </computer>
+            </computers>
+          </zone>
+        </zones>
+      </branch>
+    </serverLayout>
+  </components>
+</configuration>

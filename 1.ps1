@@ -1,29 +1,35 @@
-$path = "D:\;E:\VHD;F:\"
-foreach ($a in $path.Split(";"))
+$json = @"
 {
-    $files += Get-ChildItem $a -ErrorAction SilentlyContinue
-    Write-Host $a, $files.Count
-}
-Write-Host $files.Count
-
-
-foreach ($p in $($LabConfig.VHDStore).Split(";"))
-{
-    $ParentDisks += Get-ChildItem "p\ParentDisks" -ErrorAction SilentlyContinue -Include "*.vhdx" -Recurse
-    if ($ParentDisks -ne $null)
+    "firstName": "John",
+    "lastName" : "Smith",
+    "age"      : 25,
+    "address"  :
     {
-        WriteInfo "Find VHD template $ParentDisks in $p"
-        exit
-    }
-    else
-    {
-        WriteInfo "Cannot find VHD template in $p"
+        "streetAddress": "21 2nd Street",
+        "city"         : "New York",
+        "state"        : "NY",
+        "postalCode"   : "10021"
+     },
+     "phoneNumber":
+     [
+         {
+            "type"  : "home",
+            "number": "212 555-1234"
+         },
+         {
+            "type"  : "fax",
+            "number": "646 555-4567"
+         }
+     ]
+ }
+"@
+[Reflection.Assembly]::LoadFile("C:\Program Files\WindowsPowerShell\Modules\newtonsoft.json\1.0.1.141\libs\Newtonsoft.Json.dll")
+$ROOT = $PSCommandPath | Split-Path
+$Environments = "$ROOT\Environments.json"
+$envs = get-content $Environments
+#$js = [Newtonsoft.Json.JsonConvert]::DeserializeObject($envs)
+$jenvs = [Newtonsoft.Json.Linq]::JObject.Parse($envs)
 
-    }
-}
-
-
-#Start Log
 
 
 

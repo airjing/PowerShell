@@ -1,0 +1,87 @@
+{
+    "Environments":  [
+                         {
+                             "Operator":  "LabTeam",
+                             "Customer":  "ServerTeam",
+                             "Name":  "BJE11",
+                             "Template":  "MultiMachine",
+                             "ValuesManifest":  ".\\BJE11\\BJE11_ValuesManifest.json",
+                             "Description":  "S3.0 lab for server sustaining",
+                             "Product":  "Mediaroom",
+                             "Branch":  "mr_tv2_3.0_staging",
+                             "flavor":  "installer_x64_ship",
+                             "Build":  "10065",
+                             "Status":  "Planning",
+                             "Serverlayout":  "",
+                             "Networks":  [
+                                              {
+                                                  "Network":  "Management",
+                                                  "VLANID":  "109",
+                                                  "CIDR":  "10.164.100.0/22",
+                                                  "Gateway":  "10.164.100.1",
+                                                  "IP":  ".\\Networks\\VLAN109.json"
+                                              },
+                                              {
+                                                  "Network":  "Ingress",
+                                                  "VLANID":  "107",
+                                                  "CIDR":  "10.164.68.0/24",
+                                                  "Gateway":  "10.164.68.1",
+                                                  "IP":  ".\\Networks\\VLAN107.json"
+                                              },
+                                              {
+                                                  "Network":  "Egress",
+                                                  "VLANID":  "108",
+                                                  "CIDR":  "10.164.69.0/24",
+                                                  "Gateway":  "10.164.69.1",
+                                                  "IP":  ".\\Networks\\VLAN108.json"
+                                              }
+                                          ],
+                             "VirtualHosts":  [
+                                                  {
+                                                      "VirtualHost":  "MRBJ-VHOST-109",
+                                                      "DataSource":  ".\\VirtualHost\\MRBJ-VHOST-109",
+                                                      "PhysicalRAM":  "128G",
+                                                      "Cores":  "24",
+                                                      "Hyper-VHome":  [
+                                                                          {
+                                                                              "Path":  "E:\\VMStore",
+                                                                              "Protocol":  "Local",
+                                                                              "Performance":  "High",
+                                                                              "Resilience":  "True",
+                                                                              "TotalSpace":  "2.9T"
+                                                                          }
+                                                                      ]
+                                                  },
+                                                  {
+                                                      "VirtualHost":  "MRBJ-VHOST-110",
+                                                      "DataSource":  ".\\VirtualHost\\MRBJ-VHOST-110",
+                                                      "PhysicalRAM":  "128G",
+                                                      "Cores":  "24",
+                                                      "Hyper-VHome":  [
+                                                                          {
+                                                                              "Path":  "E:\\VMStore",
+                                                                              "Protocol":  "Local",
+                                                                              "Performance":  "High",
+                                                                              "Resilience":  "True",
+                                                                              "TotalSpace":  "2.9T"
+                                                                          }
+                                                                      ]
+                                                  }
+                                              ]
+                         },
+                         {
+                             "Operator":  "LabTeam",
+                             "Customer":  "ServerTeam",
+                             "Name":  "BJE12",
+                             "Template":  "MM",
+                             "ValuesManifest":  ".\\BJE12\\BJE12_ValuesManifest.json",
+                             "Description":  "",
+                             "Product":  "Mediaroom",
+                             "Branch":  "mr_tv2_3.0_staging",
+                             "flavor":  "installer_x64_ship",
+                             "Build":  "10065",
+                             "Status":  "Planning",
+                             "Serverlayout":  ".\\BJE12\\serverlayout.xml"
+                         }
+                     ]
+}

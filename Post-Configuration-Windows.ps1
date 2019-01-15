@@ -1,9 +1,10 @@
 # Setup Environmental Variables
-[environment]::SetEnvironmentVariable("VAGRANT_HOME","E:\Applications\.vagrant.d")
-[environment]::SetEnvironmentVariable("VAGRANT_DOTFILE_PATH","E:\Applications\.vagrant-hyperv")
+[environment]::SetEnvironmentVariable("VAGRANT_HOME","E:\ApplicationsData\.vagrant.d","Machine")
+[environment]::SetEnvironmentVariable("VAGRANT_DOTFILE_PATH","E:\ApplicationsData\.vagrant-hyperv","Machine")
 [environment]::SetEnvironmentVariable("JAVA_HOME","E:\Applications\Java\jdk-11.0.1","Machine")
 $pChef = "E:\Applications\opscode\chef-workstation\bin\"
 $pJava = "%JAVA_HOME%\bin"
+$pVagrant = "E:\Applications\HashiCorp\Vagrant\bin"
 
 function InEnvPath {
     param (
@@ -40,3 +41,4 @@ function Add-EnvPath {
 }
 Add-EnvPath $pJava
 Add-EnvPath $pChef
+Add-EnvPath $pVagrant

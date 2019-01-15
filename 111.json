@@ -1,0 +1,31 @@
+{    
+    "Operator":"LabTeam",
+    "Name":"BJE12",
+    "Networks":
+    [
+        {
+            "Network":  "ServerFunctionManagement",
+            "NetworkDataSource": ".\\Networks\\ServerFunctionManagement.json"
+        },
+        {
+            "Network":  "ServerFunctionLoadBalance",
+            "NetworkDataSource": ".\\Networks\\ServerFunctionLoadBalance.json"
+        },
+        {
+            "Network":"ServerIngress",
+            "NetworkDataSource":".\\Networks\\ServerIngress.json"
+        },
+        {
+            "Network":"ServerEgress",
+            "NetworkDataSource":".\\Networks\\ServerEgress.json"
+        }
+    ]
+    Computers:
+    [
+        {
+            "Name":"",
+            "VmSku:"HyperV-S2",
+            "VmImageSku":"win2k12r2vlstd"
+        }
+    ]
+}
