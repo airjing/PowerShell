@@ -4,6 +4,21 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+<<<<<<< HEAD
+=======
+        {
+            "type": "java",
+            "name": "Java Debug (Launch)",
+            "request": "launch",
+            "mainClass": ""
+        },
+        {
+            "type": "java",
+            "name": "Java Debug (Launch) - Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+>>>>>>> c4171480efc5caefa01f2ed5be0ceb57facf5987
         {
             "type": "PowerShell",
             "request": "launch",
