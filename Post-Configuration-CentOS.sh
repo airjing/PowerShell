@@ -167,7 +167,7 @@ sudo yum --enablerepo=elrepo-kernel install kernel-ml
 sudo reboot
 #reboot to apply the latest kernel, and then select latest kernel from the menu as shown.
 # set default kernel verion in GRUB
-sudo vi /etc/default/GRUB
+sudo vi /etc/default/grub
 # set GRUB_DEFAULT=0
 sudo grub2-mkconfig -o /boot/grub2/grub.cfg
 reboot
