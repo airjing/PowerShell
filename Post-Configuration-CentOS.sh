@@ -304,3 +304,8 @@ yum install google-chrome-stable
 sudo yum install -y yum-utils device-mapper-persistent-data lvm2
 sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 sudo yum install docker-ce docker-ce-cli containerd.io
+#upgrade kernel to 5.0
+sudo rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+sudo rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm 
+sudo yum --disablerepo="*" --enablerepo="elrepo-kernel" list available
+yum --enablerepo=elrepo-kernel install kernel-ml
