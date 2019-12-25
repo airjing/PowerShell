@@ -48,7 +48,7 @@ function Get-ComputerInfo {
         foreach($netadapter in $netadapters)
         {
             $ipconfiguration = $netAdapter | Get-NetIPConfiguration -ErrorAction Ignore
-            $DNSServers = @()
+            $DNSServers = ""
             $allproperties = $netAdapter | Get-NetAdapterAdvancedProperty
             $sendbuffers = ($allproperties | Where-Object {$_.DisplayName -eq "Transmit Buffers"}).DisplayValue
             $recbuffers = ($allproperties | Where-Object {$_.DisplayName -eq "Receive Buffers"}).DisplayValue
@@ -56,10 +56,7 @@ function Get-ComputerInfo {
             $vmq = ($allproperties | Where-Object {$_.DisplayName -eq "Virtual Machine Queues"}).DisplayValue
             foreach($dnsserver in $ipconfiguration.DNSServer.ServerAddresses)
             {
-                $DNSServer = @{
-                    "DNSServer" = $dnsserver
-                }
-                $DNSServers += $DNSServer
+                $DNSServers = $dnsserver + ";"
             }
             $info_netadapter = @{
                 "Name" = $netadapter.Name
@@ -75,7 +72,6 @@ function Get-ComputerInfo {
                 "ReceiveBuffers" = $recbuffers
                 "ReceiveSideScaling" = $rss
                 "VirtualMachineQueues" = $vmq
-
             }
             $info_netadapters += $info_netadapter
         }
@@ -94,14 +90,17 @@ function Get-ComputerInfo {
     
     $Server = New-Object -TypeName PSObject -Property $info
     return $Server
-
 }
 function DumpTo-Xml{
     param(
         # Parameter help description
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [psobject]
-        $InputObj,
+        $InputObject,
+        # Parameter help description
+        [Parameter(Mandatory = $false)]
+        [int16]
+        $Deepth,
         # Parameter help description
         [Parameter(Mandatory = $false)]
         [string]
@@ -111,7 +110,65 @@ function DumpTo-Xml{
         {
             $OutputFile = "output.xml"
         }
-    if($InputObj)
+    if(Test-Path $OutputFile)
+    {
+        $xmldoc = [xml](Get-Content $OutputFile)
+    }
+    else{
+        $xmldoc = New-Object System.Xml.XmlDocument
+        $root = $xmldoc.CreateElement("Servers")
+        $xmldoc.AppendChild($root)
+        $xmldoc.Save($OutputFile)
+    }
+    if($InputObject)
+    {
+        $strHostname = $InputObject.Hostname
+        $xmlEleServer = $xmldoc.SelectSingleNode("//Servers/Server[Hostname='$strHostname']")
+        if(!$xmlEleServer)
+        {
+            $xmlEleServer = $xmldoc.CreateElement("Server")
+            foreach($property in $InputObject.PSObject.Properties)
+            {
+                if($property.TypeNameOfValue -eq "System.Collections.Hashtable")
+                {
+                    foreach($subProperty in $property.Value.GetEnumerator())
+                    {
+                        $xmlSub = $xmldoc.CreateElement($subProperty.Name)
+                        $xmlSub.InnerText = $subProperty.Value
+                        $xmlEleServer.AppendChild($xmlSub)
+                    }
+                }
+                if($property.TypeNameOfValue -eq "System.Object[]")
+                {
+                    foreach($item in $property.Value)
+                    {
+                        $xmlSubEleServer = $xmldoc.CreateElement($property.Name.TrimEnd('s'))
+                        foreach($subitem in $item.Keys)
+                        {
+                            $xmlSub = $xmldoc.CreateElement($subitem)
+                            $xmlSub.InnerText = $item[$subitem]
+                            $xmlSubEleServer.AppendChild($xmlSub)
+                        }
+                        $xmlEleServer.AppendChild($xmlSubEleServer)
+                    }
+                    
+                }
+                if($property.TypeNameOfValue -eq "System.String")
+                {
+                    $xmlSub = $xmldoc.CreateElement($property.Name)
+                    $xmlSub.InnerText = $property.Value
+                    $xmlEleServer.AppendChild($xmlSub)
+                }
+            }
+            $xmldoc.AppendChild($xmlEleServer)
+            $xmldoc.Save($OutputFile)
+        }
+
+    }
+
+
+    
+    if(!$InputObject)
     {        
         $xmlwriter = New-Object System.Xml.XmlTextWriter($OutputFile,$null)
         $xmlwriter.Formatting = "Indented"
@@ -120,131 +177,88 @@ function DumpTo-Xml{
         $xmlwriter.WriteStartDocument()
         #$xmlwriter.WriteProcessingInstruction("xml-stylesheet","type='text/xsl' herf='style.xsl'")            
         #Write root element
-        $xmlwriter.WriteStartElement("Servers")
-            $xmlwriter.WriteStartElement("Server")            
+        try{
+            $xmlwriter.WriteStartElement("Servers")
+            $xmlwriter.WriteStartElement("Server")
+            foreach($property in $InputObject.PSObject.Properties)
+            {
+                if($property.TypeNameOfValue -eq "System.Collections.Hashtable")
+                {
+                    $xmlwriter.WriteStartElement($property.Name)
+                    foreach($subProperty in $property.Value.GetEnumerator())
+                    {
+                        $xmlwriter.WriteElementString($subProperty.Name,$subProperty.Value)
+                    }
+                    $xmlwriter.WriteEndElement()
+                }
+                if($property.TypeNameOfValue -eq "System.Object[]"){
+                    $xmlwriter.WriteStartElement($property.Name)
+                    foreach($item in $property.Value)
+                    {
+                        $xmlwriter.WriteStartElement($property.Name.TrimEnd('s'))
+                        foreach($subitem in $item.Keys)
+                        {
+                            if(!$subitem.Value.Keys)
+                            {
+                                $xmlwriter.WriteElementString($subitem,$item[$subitem])
+                            }
+                            else {
+                                $xmlwriter.WriteStartElement($subitem.Name)
+                                foreach($childItem in $subitem.Keys)
+                                {
+                                    $xmlwriter.WriteElementString($childItem,$subitem[$childItem])
+                                }
+                                $xmlwriter.WriteEndElement()
+                            }
+                        }                        
+                        $xmlwriter.WriteEndElement()
+                    }
+                    $xmlwriter.WriteEndElement()
+                }
+                if($property.TypeNameOfValue -eq "System.String")
+                {
+                    
+                    $xmlwriter.WriteElementString($property.Name,$property.Value)
+                }
+            }
+        }
+        finally{
             $xmlwriter.WriteEndElement()
         $xmlwriter.WriteEndElement()
     $xmlwriter.WriteEndDocument()
     $xmlwriter.Flush()
     $xmlwriter.Close()
+        }
+        
+
     }
 }
-function Write-Property{
-    param(
-        # Parameter help description
-        [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
-        [PSObject.Properties]
-        $Property,
-        # Parameter help description
-        [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
-        [System.Xml.XmlTextWriter]
-        $XmlWriter
-    )
-    if($Property.TypeNameOfValue -ne "System.Collections.Hashtable")
-    {
-        $XmlWriter.WriteStartElement($Property.Name)
-        $XmlWriter.WriteEndElement()
-    }
-    else{
-        $XmlWriter.WriteElementString()
-    }
-    
-    
-    
-    foreach($property in $properties)
-            {
-                if($property.TypeNameOfValue -ne "System.Collections.Hashtable")
-                {
-                    $xmlwriter.WriteElementString($property.Name,$property.Value)
-                }
-                else {
-                    $xmlwriter.WriteStartElement($property.Name)
-                    
-                    $xmlwriter.WriteEndElement()
-                }
-            }
-}
-function Out-Xml{
-$outputfile = "output.xml"
-$xmlwriter = New-Object System.Xml.XmlTextWriter($outputfile,$null)
-$xmlwriter.Formatting = "Indented"
-$xmlwriter.Indentation = 2
-$xmlwriter.IndentChar = ' '
+function Write-Xml{
+#set the formatting
+$xmlsetting = New-Object System.Xml.XmlWriterSettings
+$xmlsetting.Indent = $true
+$xmlsetting.IndentChars = ' '
+$xmlwriter = [System.Xml.XmlWriter]::Create("example.xml",$xmlsetting)
+
 $xmlwriter.WriteStartDocument()
-#$xmlwriter.WriteProcessingInstruction("xml-stylesheet","type='text/xsl' herf='style.xsl'")
-    $xmlwriter.WriteComment("Server Information")
-    $xmlwriter.WriteStartElement("Servers")
-        $xmlwriter.WriteStartElement("Server")
-            $xmlwriter.WriteComment("General information")
-            $info_computersystem = Get-WmiObject Win32_ComputerSystem
-            $xmlwriter.WriteElementString("Hostname",$info_computersystem.Name)
-            $xmlwriter.WriteElementString("Model",$info_computersystem.Model)
-            $xmlwriter.WriteElementString("Manufacturer",$info_computersystem.Manufacturer)
-            $info_bios = Get-WmiObject Win32_BIOS
-            $xmlwriter.WriteElementString("SerialNumber",$info_bios.SerialNumber)
-            $xmlwriter.WriteElementString("SMBIOSBIOSVersion",$info_bios.SMBIOSBIOSVersion)
-            $info_os = Get-WmiObject Win32_OperatingSystem
-            $xmlwriter.WriteElementString("OSCaption",$info_os.Caption)
-            $xmlwriter.WriteElementString("BuildNumber",$info_os.BuildNumber)
-            $xmlwriter.WriteElementString("BootDevice",$info_os.BootDevice)
-            $xmlwriter.WriteElementString("",$info_os.CurrentTimeZone)
-            $OSInstallDate = $info_os.ConvertToDateTime($info_os.InstallDate)
-            $xmlwriter.WriteElementString("InstallDate",$OSInstallDate)
-            $OSLiveTime = (Get-Date) - $OSInstallDate
-            $strOSLiveTime = [string]$OSLiveTime.Days + ":" + [string]$OSLiveTime.Hours +":" + [string]$OSLiveTime.Minutes + ":" + [string]$OSLiveTime.Seconds + " - (DD:HH:MM:SS)"
-            $xmlwriter.WriteElementString("OSLiveTime",$strOSLiveTime)
-            $LastBootUpTime = $info_os.ConvertToDateTime($info_os.LastBootUpTime)
-            $xmlwriter.WriteElementString("LastBootUpTime",$LastBootUpTime)
-            $uptime = (Get-Date) - $LastBootUpTime
-            $strUptime = [string]$uptime.Days + ":" + [string]$uptime.Hours +":" + [string]$uptime.Minutes + ":" + [string]$uptime.Seconds + " - (DD:HH:MM:SS)"
-            $xmlwriter.WriteElementString("Uptime",$strUptime)
-            $xmlwriter.WriteElementString("OSArchitecture",$info_os.OSArchitecture)
-            $xmlwriter.WriteElementString("WindowsDirectory",$info_os.WindowsDirectory)
-            # Hardware information
-            $xmlwriter.WriteStartElement("Hardware")
-                # Dump Net Adapters
-                $netadapters = Get-NetAdapter | Sort-Object -Property MacAddress
-                if($netadapters)                
-                {
-                    $xmlwriter.WriteStartElement("NetAdapters")
-                    foreach($netadapter in $netadapters)
-                    {
-                        $xmlwriter.WriteStartElement("NetAdapter")
-                        $xmlwriter.WriteElementString("Name",$netadapter.name)
-                        $xmlwriter.WriteElementString("Status",$netadapter.Status)
-                        $xmlwriter.WriteElementString("LinkSpeed",$netadapter.LinkSpeed)
-                        $xmlwriter.WriteElementString("InterfaceDescription",$netadapter.InterfaceDescription)                        
-                        $xmlwriter.WriteElementString("ifIndex",$netadapter.ifIndex)
-                        $xmlwriter.WriteElementString("MacAddress",$netadapter.MacAddress)
-                        $ipconfiguration = $netAdapter | Get-NetIPConfiguration -ErrorAction Ignore
-                        $xmlwriter.WriteElementString("IPv4Address",$ipconfiguration.IPv4Address)
-                        $xmlwriter.WriteElementString("IPv4DefaultGateway",$ipconfiguration.IPv4DefaultGateway.NextHop)
-                        $xmlwriter.WriteStartElement("DNSServer")
-                        foreach($dnsserver in $ipconfiguration.DNSServer.ServerAddresses)
-                        {
-                            $xmlwriter.WriteElementString("DNSServer",$dnsserver)
-                        }
-                        $xmlwriter.WriteEndElement()
-                        $allproperties = $NetAdapter | Get-NetAdapterAdvancedProperty
-                        $sendbuffers = ($allproperties | Where-Object {$_.DisplayName -eq "Transmit Buffers"}).DisplayValue
-                        $recbuffers = ($allproperties | Where-Object {$_.DisplayName -eq "Receive Buffers"}).DisplayValue
-                        $rss = ($allproperties | Where-Object {$_.DisplayName -eq "Receive Side Scaling"}).DisplayValue
-                        $vmq = ($allproperties | Where-Object {$_.DisplayName -eq "Virtual Machine Queues"}).DisplayValue
-                        $xmlwriter.WriteElementString("Transmit_Buffers",$sendbuffers)
-                        $xmlwriter.WriteElementString("Recevie_Buffers",$recbuffers)
-                        $xmlwriter.WriteElementString("Receive_Side_Scaling",$rss)
-                        $xmlwriter.WriteElementString("Virtual_Machine_Queues",$vmq)                        
-                        $xmlwriter.WriteEndElement()
-                    }
-                    $xmlwriter.WriteEndElement() 
-                }
-            $xmlwriter.WriteEndElement()
+$xmlwriter.WriteProcessingInstruction("xml-stylesheet","type='text/sxl' herf='style.xsl'")
+$xmlwriter.WriteStartElement("ROOT")
+    $xmlwriter.WriteStartElement("Object")
+    $xmlwriter.WriteAttributeString("Current",$true)
+    $xmlwriter.WriteAttributeString("Owner",$HOME)  
+        $xmlwriter.WriteElementString("Property1","Value 1")        
+        $xmlwriter.WriteElementString("Property2","Value 2")
+            $xmlwriter.WriteStartElement("SubObject")
+                $xmlwriter.WriteElementString("Property3", "Value 3")
+            $xmlwriter.WriteEndElement()        
         $xmlwriter.WriteEndElement()
-    $xmlwriter.WriteEndElement()
+$xmlwriter.WriteEndElement()
 $xmlwriter.WriteEndDocument()
 $xmlwriter.Flush()
 $xmlwriter.Close()
 }
 
-$xml = Get-ComputerInfo | ConvertTo-Xml -NoTypeInformation -As Document
-$xml.Save("1.xml")
+Get-ComputerInfo | DumpTo-Xml
+#$xml.Save("1.xml")
+
+
