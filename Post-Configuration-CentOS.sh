@@ -243,7 +243,7 @@ zone "." IN {
         type hint;
         file "named.ca";
 };
-zone "azure.io" {
+zone "azure.io" IN {
         type master;
         file "azure.io.zone";
 }; 

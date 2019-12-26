@@ -38,7 +38,7 @@ function Install-AzPowerShell
         Update-Module -Name Az
     }
     else {
-        Install-Module -Name Az -AllowClobber
+        Install-Module -Name Az -AllowClobber -Force
     }    
 }
 
@@ -100,6 +100,6 @@ function New-VM{
     }
 }
 #Stop-VM
-Start-VM
-
+#Start-VM
+Install-AzPowerShell
 

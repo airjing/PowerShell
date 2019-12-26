@@ -1,19 +1,12 @@
 # Setup Environmental Variables
-<<<<<<< HEAD
-[environment]::SetEnvironmentVariable("VAGRANT_HOME","E:\ApplicationsData\.vagrant.d","Machine")
-[environment]::SetEnvironmentVariable("VAGRANT_DOTFILE_PATH","E:\ApplicationsData\.vagrant-hyperv","Machine")
-=======
+$drive="D:\;E:\;F:\"
+$AppHome="D:\Applications"
 [environment]::SetEnvironmentVariable("VAGRANT_HOME","F:\ApplicationsData\.vagrant.d","Machine")
 [environment]::SetEnvironmentVariable("VAGRANT_DOTFILE_PATH","E:\VMHome\.vagrant-hyperv","Machine")
->>>>>>> c4171480efc5caefa01f2ed5be0ceb57facf5987
 [environment]::SetEnvironmentVariable("JAVA_HOME","E:\Applications\Java\jdk-11.0.1","Machine")
 $pChef = "E:\Applications\opscode\chef-workstation\bin\"
 $pJava = "%JAVA_HOME%\bin"
 $pVagrant = "E:\Applications\HashiCorp\Vagrant\bin"
-<<<<<<< HEAD
-
-=======
->>>>>>> c4171480efc5caefa01f2ed5be0ceb57facf5987
 function InEnvPath {
     param (
         # Path name to test if already in ENV:Path
@@ -49,9 +42,6 @@ function Add-EnvPath {
 }
 Add-EnvPath $pJava
 Add-EnvPath $pChef
-<<<<<<< HEAD
-Add-EnvPath $pVagrant
-=======
 Add-EnvPath $pVagrant
 # show env:path
 $env:path.split(";")
@@ -84,4 +74,3 @@ if(Test-Path $dst)
 
 
 
->>>>>>> c4171480efc5caefa01f2ed5be0ceb57facf5987
